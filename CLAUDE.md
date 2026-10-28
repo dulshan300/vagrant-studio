@@ -21,7 +21,10 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 cargo test -p vagrant-studio-platform finds_first_match   # single crate / single test
+cargo test -p vagrant-studio-platform --target x86_64-pc-windows-gnu   # run tests as a Windows .exe via WSL interop
 ```
+
+CI currently builds **Windows only** (MSVC + NSIS); the Ubuntu and Fedora jobs are commented out in `.github/workflows/ci.yml` until Linux work resumes. Path and process code must also pass on Windows, so run the windows-gnu test command above before pushing.
 
 The `vagrant-studio` crate (apps/desktop/src-tauri) needs WebKitGTK 4.1 dev packages on Linux. Without them, check and test the other crates with `--workspace --exclude vagrant-studio`.
 
