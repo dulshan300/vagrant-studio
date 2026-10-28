@@ -20,10 +20,11 @@ _Last updated: 2026-10-28_
 | Settings page (theme, app/host info) | Done |
 | Tauri app crate, minimal capabilities, `get_app_info` | Done; compiles, clippy clean, launches under WSLg |
 | ESLint, Prettier, vue-tsc, Vitest, rustfmt, clippy | Done |
-| CI: Windows build, test and package | First run failed (Rust tests); fixes in `be4c54c`, awaiting rerun |
+| CI: Windows build, test and package | **Pass** (run 40716119723, `93ffb16`, 2026-10-28): all checks, MSVC build, NSIS installer artifact (2.3 MB) |
 | CI: Ubuntu / Fedora jobs | **Paused** by decision 2026-10-28 (Windows first); `.deb`/`.rpm` did build locally in WSL after the Tauri version fix |
 | App launch in WSL2 (WSLg) | Verified by the user 2026-10-28: window renders, sidebar navigation works, host readiness shows WSL + Vagrant path |
-| App launch on Windows 11 / Ubuntu / Fedora | **Not verified** |
+| Windows 11 installer install and launch | **Not verified yet**: download the CI artifact and test it |
+| Ubuntu / Fedora launch | Not verified (Linux CI paused) |
 
 ## Test results (WSL2 Ubuntu 24.04, 2026-10-28)
 | Check | Result |
@@ -40,9 +41,9 @@ _Last updated: 2026-10-28_
 
 ## Environmental blockers
 1. ~~WebKitGTK packages missing in WSL2~~ — installed by the user 2026-10-28.
-2. **Windows CI not yet green.** The remote is `github.com/dulshan300/vagrant-studio`.
-   The first run (`e1aa4d8`) failed: Windows at Rust tests, Linux at a Tauri
-   npm/crate version mismatch. Both are fixed locally; the next run decides.
+2. ~~Windows CI failing~~: fixed. The first run failed on two path tests that
+   assumed Unix paths (reproduced and fixed locally by running the tests as a
+   Windows binary, see below) and on a Tauri npm/crate version mismatch.
 3. **Slow npm registry access** from this machine (10+ minutes for a full
    install). This doesn't affect correctness.
 
@@ -53,6 +54,13 @@ _Last updated: 2026-10-28_
 - Windows host: VirtualBox 7.1.18 and Hyper-V (`vmcompute.exe`) present.
   Hyper-V coexistence is risk R8.
 - Docker 29.7.2 is available, a candidate harness for automated lifecycle tests.
+
+## Local Windows testing from WSL
+WSL has MinGW-w64 and the `x86_64-pc-windows-gnu` Rust target, and Windows
+binaries run through WSL interop:
+`cargo test -p vagrant-studio-platform --target x86_64-pc-windows-gnu` runs the
+tests natively on Windows. This is a GNU-toolchain check only; release builds
+use MSVC in CI. Windows has no local MSVC or Rust install.
 
 ## Known bugs
 None recorded.
