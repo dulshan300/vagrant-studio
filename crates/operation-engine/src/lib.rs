@@ -486,6 +486,7 @@ impl OperationEngine {
                     Some(failure_summary(
                         vagrant_error.as_ref().map(|e| e.message.as_str()),
                         &captured.stderr_tail,
+                        &human_output_tail(&req.command, &captured.stdout),
                         r.exit_code,
                     )),
                 ),
@@ -582,6 +583,7 @@ impl OperationEngine {
             Ok(r) => Some(failure_summary(
                 vagrant_error.as_ref().map(|e| e.message.as_str()),
                 &captured.stderr_tail,
+                &[],
                 r.exit_code,
             )),
         };
@@ -737,12 +739,36 @@ pub fn command_line(command: &VagrantCommand) -> String {
         .join(" ")
 }
 
+/// Lines of output shown with a failure from a human-output command.
+const OUTPUT_CONTEXT_LINES: usize = 6;
+
+/// The last non-empty stdout lines of a command with human output. Vagrant
+/// prints guest output (including a failing provisioner's errors) to stdout
+/// and only its generic error ("The SSH command responded with a non-zero
+/// exit status…") to stderr, so the cause is in these lines.
+fn human_output_tail(command: &VagrantCommand, stdout: &[String]) -> Vec<String> {
+    if command.args().iter().any(|a| a == "--machine-readable") {
+        return Vec::new();
+    }
+    let mut tail: Vec<String> = stdout
+        .iter()
+        .rev()
+        .map(|l| l.trim())
+        .filter(|l| !l.is_empty())
+        .take(OUTPUT_CONTEXT_LINES)
+        .map(str::to_owned)
+        .collect();
+    tail.reverse();
+    tail
+}
+
 fn failure_summary(
     vagrant_error: Option<&str>,
     stderr_tail: &[String],
+    output_tail: &[String],
     code: Option<i32>,
 ) -> String {
-    let text = match vagrant_error {
+    let mut text = match vagrant_error {
         Some(message) => message.to_owned(),
         None if !stderr_tail.is_empty() => stderr_tail.join("\n"),
         None => match code {
@@ -750,7 +776,13 @@ fn failure_summary(
             None => "Vagrant was terminated.".to_owned(),
         },
     };
-    text.chars().take(1000).collect()
+    if !output_tail.is_empty() {
+        text = format!(
+            "{text}\n\nLast output before the error:\n{}",
+            output_tail.join("\n")
+        );
+    }
+    text.chars().take(1500).collect()
 }
 
 /// Folder for operation logs inside the app data folder.

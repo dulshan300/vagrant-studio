@@ -111,7 +111,10 @@ Windows `.exe` with the frontend embedded. This is a GNU-toolchain check only; r
 use MSVC in CI. Windows has no local MSVC or Rust install.
 
 ## Known bugs
-None recorded.
+None open. Fixed during the Phase 4 walkthrough: provisioner failures showed only
+Vagrant's generic "SSH command responded with a non-zero exit status" text, because
+Vagrant prints guest output to stdout; failure summaries of human-output commands now
+include the last output lines.
 
 ## Next recommended task
 1. User walkthrough of `docs/testing/manual-lifecycle.md` on Windows with VMware

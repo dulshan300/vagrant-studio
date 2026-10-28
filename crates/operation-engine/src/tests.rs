@@ -340,7 +340,7 @@ async fn failures_without_machine_readable_errors_use_stderr() {
     let op = h.engine.run(req).await.unwrap();
     assert_eq!(
         op.error_summary.as_deref(),
-        Some("first problem\nThe VM failed")
+        Some("first problem\nThe VM failed\n\nLast output before the error:\n==> web: doing")
     );
     assert_eq!(h.engine.environment_status(h.env).await.unwrap(), None);
 }
@@ -709,5 +709,38 @@ async fn destroy_requires_a_matching_single_use_confirmation() {
         h.runner.calls().len(),
         2,
         "nothing ran after the first destroy"
+    );
+}
+
+#[tokio::test]
+async fn provisioner_failures_include_the_guest_output() {
+    // Vagrant 2.4.9 prints guest output via `ui.detail` (stdout) and only its
+    // generic SSH error to stderr.
+    let h = harness(
+        FakeRunner::new(
+            "==> web: Running provisioner: shell...\n    web: Running: inline script\n    web: E: Could not get lock /var/lib/dpkg/lock-frontend. It is held by process 1234 (unattended-upgr)\n\n!The SSH command responded with a non-zero exit status. Vagrant\n!assumes that this means the command failed.",
+            1,
+        )
+        .with_status(STATUS_RUNNING),
+    )
+    .await;
+    let op = h
+        .engine
+        .run(lifecycle_request(
+            h.env,
+            LifecycleAction::Provision,
+            &["web"],
+        ))
+        .await
+        .unwrap();
+    assert_eq!(op.status, OperationStatus::Failed);
+    let summary = op.error_summary.unwrap();
+    assert!(
+        summary.starts_with("The SSH command responded"),
+        "{summary}"
+    );
+    assert!(
+        summary.contains("Last output before the error:\n==> web: Running provisioner: shell...\nweb: Running: inline script\nweb: E: Could not get lock"),
+        "{summary}"
     );
 }
