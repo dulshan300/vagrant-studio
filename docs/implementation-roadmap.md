@@ -30,7 +30,7 @@ Smallest sequence:
 
 Acceptance: app launches on target OSes; UI navigable; CI runs tests; no new warnings.
 
-## Phase 2 — Persistence and project management
+## Phase 2 — Persistence and project management (complete 2026-10-28, Windows)
 - [x] `crates/domain`: Project, Environment, status/type enums, UUIDv7 IDs, validation (names, URLs without credentials, tags, slugs), portable format
 - [x] `crates/project-store`: SQLx SQLite in the app data dir (WAL, FKs), `migrations/0001_initial.sql` (all spec §7 tables, FKs, indexes), project/environment/tag/settings persistence, migration tests
 - [x] `crates/project-service`: create (empty or template), inspect (read-only), import, add/remove environments, update, favorite, archive/restore, delete (metadata; optional folder → OS trash with safeguards), portable metadata preview/write

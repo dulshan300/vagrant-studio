@@ -3,13 +3,17 @@
 _Last updated: 2026-10-28_
 
 ## Current phase
-**Phase 2 — Persistence and project management: implemented and tested; awaiting user check on Windows.**
+**Phase 2 — Persistence and project management: complete (Windows).** Next: Phase 3, Vagrant CLI integration.
 
 ## Completed phases
 - **Phase 0 — Inspection and planning** (2026-10-28): architecture, roadmap,
   provider capabilities, ADRs 0001–0006, risks (architecture.md §11).
 - **Phase 1 — Desktop foundation** (2026-10-28, Windows): green Windows CI with NSIS
   installer; native Windows launch verified by the user.
+- **Phase 2 — Persistence and project management** (2026-10-28, Windows): automated
+  acceptance tests pass on Linux and as Windows binaries; user walkthrough on Windows
+  (create from template, import, favorite/tags/archive, portable file, restart
+  persistence, metadata-only remove) found no issues.
 
 ## Phase 2 results (2026-10-28)
 | Check | Result |
@@ -21,7 +25,7 @@ _Last updated: 2026-10-28_
 | Templates `vagrant validate` (Windows Vagrant 2.4.9) | Pass, all 3 |
 | Acceptance: restart persistence, import changes no files, metadata delete keeps files, migration tests | Covered by automated tests, all passing |
 | Windows app launch (local build) | Starts; database created in `%APPDATA%\dev.vagrantstudio.desktop` |
-| Manual UI walkthrough on Windows | **Pending** |
+| Manual UI walkthrough on Windows | **Pass**: user, 2026-10-28, no issues |
 | Windows CI for Phase 2 | Not yet pushed |
 
 ## Phase 1 progress
@@ -82,6 +86,7 @@ use MSVC in CI. Windows has no local MSVC or Rust install.
 None recorded.
 
 ## Next recommended task
-1. Start Phase 2 with `crates/domain` and `crates/project-store` (SQLite migrations).
-2. Install the CI NSIS installer by hand on Windows 11 (the MSVC build) at some point before release.
-3. Later: re-enable the Ubuntu/Fedora CI jobs.
+1. Push and confirm the Windows CI run for Phase 2.
+2. Start Phase 3: `crates/vagrant-adapter` (Vagrant discovery and version, typed argv builder, streaming process runner with cancellation, `--machine-readable` parsers with fixtures) and `crates/operation-engine` (operation records, log files, crash recovery, events), then the Operations page.
+3. Before release: install the CI NSIS installer by hand on Windows 11.
+4. Later: re-enable the Ubuntu/Fedora CI jobs.
