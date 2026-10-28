@@ -23,7 +23,7 @@ Smallest sequence:
 5. [x] App shell: sidebar with the 7 global sections, header, honest empty states per page
 6. [x] Theme: light / dark / system, applied before first paint
 7. [x] Settings page: theme, plus app and host info from the backend command `get_app_info`
-8. [~] `src-tauri`: Tauri 2 app, tracing, minimal capabilities, `get_app_info` (written; not yet compiled because WebKitGTK packages are missing in WSL)
+8. [x] `src-tauri`: Tauri 2 app, tracing, minimal capabilities, `get_app_info` (compiles; launches under WSLg)
 9. [x] ESLint (flat) + Prettier + vue-tsc + Vitest; rustfmt + clippy `-D warnings`
 10. [~] CI: per-platform frontend checks, Rust checks, native build and package on Windows, Ubuntu, Fedora container (written; not yet run)
 11. [ ] Verified launch on Windows 11 and Ubuntu (needs a CI run on GitHub and/or a native host)

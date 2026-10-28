@@ -43,7 +43,7 @@ clone on the Linux filesystem (`~/…`), not under `/mnt/c`.
 ### Commands
 
 ```sh
-corepack enable pnpm            # optional; otherwise prefix commands with `corepack`
+corepack enable pnpm            # puts the pinned pnpm on PATH (root scripts call `pnpm`)
 pnpm install
 
 pnpm dev                        # run the desktop app (Tauri + Vite, hot reload)
@@ -57,7 +57,9 @@ cargo test --workspace
 cargo test -p vagrant-studio-platform        # one crate (builds without WebKitGTK)
 ```
 
-In WSL2 the desktop window opens through WSLg. A WSL build or launch says
+In WSL2 the desktop window opens through WSLg. `libEGL ... /dev/dri ... Permission
+denied` warnings are harmless (software rendering); if the window stays blank, run with
+`WEBKIT_DISABLE_DMABUF_RENDERER=1 pnpm dev`. A WSL build or launch says
 nothing about the native Windows build; that is validated in CI on a
 Windows runner.
 
