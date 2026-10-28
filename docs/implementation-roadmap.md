@@ -62,11 +62,12 @@ Acceptance: app launches on target OSes; UI navigable; CI runs tests; no new war
 - [x] Integration test with the docker provider (Linux, opt-in, passing) and manual test plan (`docs/testing/manual-lifecycle.md`)
 - [x] Manual lifecycle use on Windows with VMware Desktop (accepted by the user); VirtualBox lifecycle not yet reported
 
-## Phase 5 — Vagrantfile editor
-- [ ] Raw editor (CodeMirror 6, Ruby highlighting, search/replace)
-- [ ] `crates/config-model`: supported subset, generator, recognizer, backup and atomic save
-- [ ] Visual forms; diff preview; unsaved-change guard; read-only visual fallback
-- [ ] Round-trip tests for generated files; `vagrant validate` as a check where available
+## Phase 5 — Vagrantfile editor (implemented 2026-10-28; Windows walkthrough pending)
+- [x] Raw editor (CodeMirror 6, Ruby highlighting, search/replace)
+- [x] `crates/config-model`: supported subset, recognizer, validation, generator with checksum header (no I/O). Backup and atomic save live in `project-service` (the only writer of project files), with a revision check and the engine's environment lock
+- [x] Visual forms (shared settings + machines: box, hostname, CPU/memory per provider, private networks, forwarded ports, synced folders, shell provisioners); diff preview for every save; unsaved-change guard (route and window close); explanation with line link when visual editing isn't possible; backups dialog; create a missing Vagrantfile
+- [x] Round-trip tests for generated files; all templates × providers, their visual regenerations and a full-feature sample pass `vagrant validate` (Windows Vagrant 2.4.9); "Validate after saving" option
+- [ ] Manual walkthrough on Windows (`docs/testing/manual-vagrantfile-editor.md`)
 
 ## Phase 6 — Boxes, providers, networking, provisioning
 - [ ] Box list/add/remove/update/inspect with in-use explanation

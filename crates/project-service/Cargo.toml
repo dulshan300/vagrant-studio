@@ -15,6 +15,7 @@ thiserror.workspace = true
 time.workspace = true
 tracing.workspace = true
 trash.workspace = true
+vagrant-studio-config-model.workspace = true
 vagrant-studio-domain.workspace = true
 vagrant-studio-project-store.workspace = true
 

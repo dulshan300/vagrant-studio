@@ -8,6 +8,11 @@ export const routes: RouteRecordRaw[] = [
     name: 'project',
     component: () => import('@/pages/ProjectPage.vue'),
   },
+  {
+    path: '/projects/:id/environments/:environmentId/vagrantfile',
+    name: 'vagrantfile',
+    component: () => import('@/pages/VagrantfilePage.vue'),
+  },
   { path: '/machines', name: 'machines', component: () => import('@/pages/MachinesPage.vue') },
   { path: '/boxes', name: 'boxes', component: () => import('@/pages/BoxesPage.vue') },
   { path: '/providers', name: 'providers', component: () => import('@/pages/ProvidersPage.vue') },

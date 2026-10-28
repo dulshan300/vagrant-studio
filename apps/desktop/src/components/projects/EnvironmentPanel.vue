@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { FileCheck, RefreshCw, ScrollText, Trash2 } from '@lucide/vue'
+import { FileCheck, FileCode, RefreshCw, ScrollText, Trash2 } from '@lucide/vue'
+import { useRouter } from 'vue-router'
 import { Button } from '@/components/ui/button'
 import ProviderSelect from '@/components/providers/ProviderSelect.vue'
 import { useProviderChoices } from '@/composables/useProviderChoices'
@@ -15,6 +16,7 @@ import type { Environment } from '@/types/projects'
 const props = defineProps<{ environment: Environment }>()
 const emit = defineEmits<{ remove: []; updated: [environment: Environment] }>()
 const providers = useProviderChoices()
+const router = useRouter()
 
 const operations = useOperationsStore()
 const actionError = ref<string | null>(null)
@@ -76,6 +78,17 @@ async function run(action: (id: string) => Promise<unknown>) {
       </div>
       <div class="flex items-center gap-1.5">
         <Button
+          variant="ghost"
+          size="sm"
+          @click="
+            router.push(
+              `/projects/${environment.projectId}/environments/${environment.id}/vagrantfile`,
+            )
+          "
+        >
+          <FileCode /> {{ environment.vagrantfilePath ? 'Vagrantfile' : 'Create Vagrantfile' }}
+        </Button>
+        <Button
           variant="secondary"
           size="sm"
           :disabled="busy || !environment.vagrantfilePath"
@@ -107,7 +120,8 @@ async function run(action: (id: string) => Promise<unknown>) {
     </div>
 
     <p v-if="!environment.vagrantfilePath" class="mt-2 text-xs text-muted">
-      No Vagrantfile detected in this folder, so Vagrant commands are disabled.
+      No Vagrantfile detected in this folder, so Vagrant commands are disabled. Use Create
+      Vagrantfile to add one.
     </p>
 
     <EnvironmentMachines v-if="status" :environment="environment" :status="status" />

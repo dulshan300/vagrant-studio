@@ -8,21 +8,25 @@ struct Harness {
     service: ProjectService,
     trashed: Arc<Mutex<Vec<PathBuf>>>,
     dir: tempfile::TempDir,
+    backups: tempfile::TempDir,
 }
 
 impl Harness {
     async fn new() -> Self {
         let trashed = Arc::new(Mutex::new(Vec::new()));
         let log = trashed.clone();
+        let backups = tempfile::tempdir().unwrap();
         let service =
             ProjectService::with_trash(Store::open_in_memory().await.unwrap(), move |p| {
                 log.lock().unwrap().push(p.to_path_buf());
                 Ok(())
-            });
+            })
+            .with_backups_dir(backups.path());
         Self {
             service,
             trashed,
             dir: tempfile::tempdir().unwrap(),
+            backups,
         }
     }
 
@@ -552,4 +556,310 @@ async fn environments_can_be_added_by_absolute_path_inside_the_project_only() {
         h.service.remove_environment(env.id).await,
         Err(ServiceError::NotFound(_))
     ));
+}
+
+// --- Vagrantfile editing -------------------------------------------------
+
+/// A template project and its only environment.
+async fn template_env(h: &Harness) -> (PathBuf, Environment) {
+    let details = h
+        .service
+        .create(create_req(h.path(""), Some("single-linux-vm")))
+        .await
+        .unwrap();
+    let env = details.environments[0].clone();
+    (PathBuf::from(&env.root_path).join("Vagrantfile"), env)
+}
+
+fn save_req(content: &str, base: Option<&str>) -> SaveVagrantfileRequest {
+    SaveVagrantfileRequest {
+        content: content.into(),
+        base_revision: base.map(str::to_owned),
+        replace_unmanaged: false,
+    }
+}
+
+fn names_in(dir: &Path) -> Vec<String> {
+    let mut names: Vec<String> = fs::read_dir(dir)
+        .unwrap()
+        .flatten()
+        .map(|e| e.file_name().into_string().unwrap())
+        .collect();
+    names.sort();
+    names
+}
+
+#[tokio::test]
+async fn template_vagrantfiles_open_in_the_visual_editor() {
+    let h = Harness::new().await;
+    let (path, env) = template_env(&h).await;
+    let doc = h.service.vagrantfile(env.id).await.unwrap();
+    assert!(doc.exists);
+    assert_eq!(doc.path, path.to_str().unwrap());
+    assert_eq!(doc.content, fs::read_to_string(&path).unwrap());
+    assert_eq!(
+        doc.revision,
+        Some(vagrant_studio_config_model::checksum(&doc.content))
+    );
+    let model = doc.analysis.model.unwrap();
+    assert_eq!(model.defaults.hostname.as_deref(), Some("dev"));
+}
+
+#[tokio::test]
+async fn saving_backs_up_the_previous_file_and_replaces_it_atomically() {
+    let h = Harness::new().await;
+    let (path, env) = template_env(&h).await;
+    let before = h.service.vagrantfile(env.id).await.unwrap();
+    let edited = before.content.replace("\"dev\"", "\"devbox\"");
+
+    let out = h
+        .service
+        .save_vagrantfile(env.id, save_req(&edited, before.revision.as_deref()))
+        .await
+        .unwrap();
+    assert!(out.changed);
+    assert_eq!(fs::read_to_string(&path).unwrap(), edited);
+    assert_eq!(out.document.content, edited);
+    assert_ne!(out.document.revision, before.revision);
+    let backup = out.backup.unwrap();
+    assert_eq!(fs::read_to_string(&backup.path).unwrap(), before.content);
+    assert!(Path::new(&backup.path).starts_with(h.backups.path().join(env.id.to_string())));
+    // Only the Vagrantfile is in the folder: no temp file left behind.
+    assert_eq!(names_in(path.parent().unwrap()), vec!["Vagrantfile"]);
+
+    // Saving the same content again writes nothing.
+    let again = h
+        .service
+        .save_vagrantfile(env.id, save_req(&edited, out.document.revision.as_deref()))
+        .await
+        .unwrap();
+    assert!(!again.changed && again.backup.is_none());
+
+    let backups = h.service.vagrantfile_backups(env.id).await.unwrap();
+    assert_eq!(backups.len(), 1);
+    assert_eq!(
+        h.service
+            .vagrantfile_backup(env.id, &backups[0].name)
+            .await
+            .unwrap(),
+        before.content
+    );
+    assert!(matches!(
+        h.service.vagrantfile_backup(env.id, "../Vagrantfile").await,
+        Err(ServiceError::NotFound(_))
+    ));
+}
+
+#[tokio::test]
+async fn saving_refuses_when_the_file_changed_on_disk() {
+    let h = Harness::new().await;
+    let (path, env) = template_env(&h).await;
+    let before = h.service.vagrantfile(env.id).await.unwrap();
+    fs::write(&path, "# changed elsewhere\n").unwrap();
+
+    let err = h
+        .service
+        .save_vagrantfile(env.id, save_req("mine", before.revision.as_deref()))
+        .await
+        .unwrap_err();
+    match err {
+        ServiceError::Stale { existing, .. } => {
+            assert_eq!(existing.as_deref(), Some("# changed elsewhere\n"))
+        }
+        other => panic!("{other}"),
+    }
+    assert_eq!(fs::read_to_string(&path).unwrap(), "# changed elsewhere\n");
+
+    // A file that appeared since the editor saw it missing is also stale.
+    let err = h
+        .service
+        .save_vagrantfile(env.id, save_req("mine", None))
+        .await
+        .unwrap_err();
+    assert!(matches!(err, ServiceError::Stale { .. }));
+}
+
+#[tokio::test]
+async fn generated_content_replaces_a_hand_written_file_only_when_confirmed() {
+    use vagrant_studio_config_model::{LineEnding, generate};
+    let h = Harness::new().await;
+    let (path, env) = template_env(&h).await;
+    let before = h.service.vagrantfile(env.id).await.unwrap();
+    let mut model = before.analysis.model.clone().unwrap();
+    model.defaults.hostname = Some("devbox".into());
+    let generated = generate(&model, LineEnding::Lf).unwrap();
+
+    let err = h
+        .service
+        .save_vagrantfile(env.id, save_req(&generated, before.revision.as_deref()))
+        .await
+        .unwrap_err();
+    match err {
+        ServiceError::ConfirmationRequired { existing, .. } => {
+            assert_eq!(existing.as_deref(), Some(before.content.as_str()))
+        }
+        other => panic!("{other}"),
+    }
+    assert_eq!(fs::read_to_string(&path).unwrap(), before.content);
+
+    let out = h
+        .service
+        .save_vagrantfile(
+            env.id,
+            SaveVagrantfileRequest {
+                replace_unmanaged: true,
+                ..save_req(&generated, before.revision.as_deref())
+            },
+        )
+        .await
+        .unwrap();
+    assert!(out.document.analysis.managed && !out.document.analysis.modified_outside);
+
+    // Once managed, later visual saves need no extra confirmation.
+    model.defaults.hostname = Some("devbox2".into());
+    let next = generate(&model, LineEnding::Lf).unwrap();
+    h.service
+        .save_vagrantfile(env.id, save_req(&next, out.document.revision.as_deref()))
+        .await
+        .unwrap();
+    assert_eq!(fs::read_to_string(&path).unwrap(), next);
+}
+
+#[tokio::test]
+async fn a_missing_vagrantfile_can_be_created_and_is_recorded() {
+    let h = Harness::new().await;
+    let details = h
+        .service
+        .create(create_req(h.path(""), None))
+        .await
+        .unwrap();
+    fs::create_dir(Path::new(&details.project.root_path).join("infra")).unwrap();
+    let env = h
+        .service
+        .add_environment(
+            details.project.id,
+            EnvironmentRequest {
+                name: "infra".into(),
+                relative_path: "infra".into(),
+                environment_type: None,
+                default_provider: None,
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(env.vagrantfile_path, None);
+
+    let doc = h.service.vagrantfile(env.id).await.unwrap();
+    assert!(!doc.exists && doc.revision.is_none() && doc.content.is_empty());
+    let out = h
+        .service
+        .save_vagrantfile(
+            env.id,
+            save_req("Vagrant.configure(\"2\") do |config|\nend\n", None),
+        )
+        .await
+        .unwrap();
+    assert!(out.changed && out.backup.is_none() && out.document.exists);
+    let (_, env) = h.service.environment(env.id).await.unwrap();
+    assert_eq!(env.vagrantfile_path.as_deref(), Some("Vagrantfile"));
+}
+
+#[tokio::test]
+async fn an_existing_lowercase_vagrantfile_is_edited_in_place() {
+    let h = Harness::new().await;
+    let details = h
+        .service
+        .create(create_req(h.path(""), None))
+        .await
+        .unwrap();
+    let root = PathBuf::from(&details.project.root_path);
+    fs::write(root.join("vagrantfile"), "old\n").unwrap();
+    let env = h
+        .service
+        .add_environment(
+            details.project.id,
+            EnvironmentRequest {
+                name: "default".into(),
+                relative_path: ".".into(),
+                environment_type: None,
+                default_provider: None,
+            },
+        )
+        .await
+        .unwrap();
+    let doc = h.service.vagrantfile(env.id).await.unwrap();
+    assert!(doc.exists);
+    h.service
+        .save_vagrantfile(env.id, save_req("new\n", doc.revision.as_deref()))
+        .await
+        .unwrap();
+    assert_eq!(names_in(&root), vec!["vagrantfile"]);
+    assert_eq!(
+        fs::read_to_string(root.join("vagrantfile")).unwrap(),
+        "new\n"
+    );
+
+    // A recorded name that no longer exists falls back to the file that does
+    // (on Windows both spellings are the same file anyway).
+    fs::rename(root.join("vagrantfile"), root.join("Vagrantfile")).unwrap();
+    let doc = h.service.vagrantfile(env.id).await.unwrap();
+    assert!(doc.exists, "{}", doc.path);
+    assert_eq!(doc.content, "new\n");
+}
+
+#[tokio::test]
+async fn backups_are_pruned_to_the_newest() {
+    let h = Harness::new().await;
+    let (_, env) = template_env(&h).await;
+    let mut revision = h.service.vagrantfile(env.id).await.unwrap().revision;
+    for i in 0..KEEP_BACKUPS + 3 {
+        let out = h
+            .service
+            .save_vagrantfile(env.id, save_req(&format!("# v{i}\n"), revision.as_deref()))
+            .await
+            .unwrap();
+        revision = out.document.revision;
+    }
+    let backups = h.service.vagrantfile_backups(env.id).await.unwrap();
+    assert_eq!(backups.len(), KEEP_BACKUPS);
+    let newest = h
+        .service
+        .vagrantfile_backup(env.id, &backups[0].name)
+        .await
+        .unwrap();
+    assert_eq!(newest, format!("# v{}\n", KEEP_BACKUPS + 1));
+}
+
+#[tokio::test]
+async fn saving_needs_a_backup_folder_and_sane_content() {
+    let h = Harness::new().await;
+    let (path, env) = template_env(&h).await;
+    let before = h.service.vagrantfile(env.id).await.unwrap();
+    let service = ProjectService::new(h.service.store.clone());
+    let err = service
+        .save_vagrantfile(env.id, save_req("x", before.revision.as_deref()))
+        .await
+        .unwrap_err();
+    assert!(matches!(err, ServiceError::Unsafe(_)), "{err}");
+    for bad in ["a\0b".to_owned(), "x".repeat(MAX_VAGRANTFILE_BYTES + 1)] {
+        let err = h
+            .service
+            .save_vagrantfile(env.id, save_req(&bad, before.revision.as_deref()))
+            .await
+            .unwrap_err();
+        assert!(matches!(err, ServiceError::Unsafe(_)), "{err}");
+    }
+    assert_eq!(fs::read_to_string(&path).unwrap(), before.content);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn symlinked_vagrantfiles_are_not_replaced() {
+    let h = Harness::new().await;
+    let (path, env) = template_env(&h).await;
+    let real = h.root().join("elsewhere");
+    fs::rename(&path, &real).unwrap();
+    std::os::unix::fs::symlink(&real, &path).unwrap();
+    let err = h.service.vagrantfile(env.id).await.unwrap_err();
+    assert!(matches!(err, ServiceError::Unsafe(_)), "{err}");
 }

@@ -22,10 +22,12 @@ uuid = { version = "1", features = ["v4", "v7", "serde"] }
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "sqlite-bundled", "migrate", "macros", "time", "uuid"] }
 trash = "5"
 regex = "1"
+sha2 = "0.10"
 tokio-util = "0.7"
 dunce = "1"
 process-wrap = { version = "10", default-features = false, features = ["tokio1", "job-object", "creation-flags", "process-group", "kill-on-drop"] }
 
+vagrant-studio-config-model = { path = "crates/config-model" }
 vagrant-studio-domain = { path = "crates/domain" }
 vagrant-studio-operation-engine = { path = "crates/operation-engine" }
 vagrant-studio-platform = { path = "crates/platform" }

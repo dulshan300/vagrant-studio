@@ -117,6 +117,23 @@ impl Store {
             .ok_or_else(|| StoreError::Conflict("Environment no longer exists.".into()))
     }
 
+    /// Records the Vagrantfile name (relative to the environment folder).
+    pub async fn set_environment_vagrantfile(
+        &self,
+        id: EnvironmentId,
+        vagrantfile_path: Option<&str>,
+    ) -> Result<Environment> {
+        sqlx::query("UPDATE environments SET vagrantfile_path = ?, updated_at = ? WHERE id = ?")
+            .bind(vagrantfile_path)
+            .bind(now())
+            .bind(id.to_string())
+            .execute(&self.pool)
+            .await?;
+        self.get_environment(id)
+            .await?
+            .ok_or_else(|| StoreError::Conflict("Environment no longer exists.".into()))
+    }
+
     /// Removes the environment's metadata only. Returns false if it did not exist.
     pub async fn delete_environment(&self, id: EnvironmentId) -> Result<bool> {
         let result = sqlx::query("DELETE FROM environments WHERE id = ?")

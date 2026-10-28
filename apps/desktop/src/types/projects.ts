@@ -135,7 +135,15 @@ export interface AppSettings {
 /** Error shape returned by every backend command (src-tauri/src/commands/error.rs). */
 export interface CommandError {
   kind:
-    'validation' | 'notFound' | 'conflict' | 'confirmationRequired' | 'unsafe' | 'io' | 'internal'
+    | 'validation'
+    | 'notFound'
+    | 'conflict'
+    | 'confirmationRequired'
+    | 'stale'
+    | 'unsafe'
+    | 'io'
+    | 'unavailable'
+    | 'internal'
   message: string
   field: string | null
   existing: string | null

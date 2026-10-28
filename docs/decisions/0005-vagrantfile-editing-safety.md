@@ -22,3 +22,15 @@ and evaluator and still couldn't represent dynamic logic.
 - Users with complex Vagrantfiles get raw editing and lifecycle features, but
   not forms.
 - No claim of full Ruby support is made anywhere in the UI or docs.
+
+## Implementation notes (Phase 5, 2026-10-28)
+- The header marker is `# vagrant-studio: sha256=<checksum of the rest>`.
+  Recognized hand-written files and template files can be edited visually.
+  A matching checksum only says whether the file was changed by hand since
+  the editor wrote it.
+- Backups go to the app data folder, not the project folder (the user's
+  choice). Project folders and git status stay clean, but backups don't
+  move with the project.
+- Raw saves also show a diff, get a backup, and are checked against changes
+  on disk.
+- Details: `docs/vagrantfile-editor.md`.

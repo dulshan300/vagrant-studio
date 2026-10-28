@@ -28,6 +28,21 @@ pub(crate) enum Held {
 }
 
 impl Locks {
+    /// The environment's write lock, if nothing holds or waits for it.
+    pub(crate) fn try_write(
+        &self,
+        environment_id: EnvironmentId,
+    ) -> Option<OwnedRwLockWriteGuard<()>> {
+        let lock = self
+            .environments
+            .lock()
+            .expect("lock")
+            .entry(environment_id)
+            .or_default()
+            .clone();
+        lock.try_write_owned().ok()
+    }
+
     pub(crate) async fn acquire(
         &self,
         environment_id: Option<EnvironmentId>,

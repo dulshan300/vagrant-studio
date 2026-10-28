@@ -3,8 +3,9 @@
 _Last updated: 2026-10-28_
 
 ## Current phase
-**Phase 4 — Multi-machine lifecycle: complete (Windows, VMware Desktop), marked done by
-the user 2026-10-28.** Next: Phase 5, Vagrantfile editor.
+**Phase 5 — Vagrantfile editor: implemented, automated checks pass (2026-10-28).
+Waiting for the user's Windows walkthrough** (`docs/testing/manual-vagrantfile-editor.md`)
+before it is marked complete. Design: `docs/vagrantfile-editor.md`.
 
 ## Completed phases
 - **Phase 0 — Inspection and planning** (2026-10-28): architecture, roadmap,
@@ -25,6 +26,23 @@ the user 2026-10-28.** Next: Phase 5, Vagrantfile editor.
   and the opt-in docker lifecycle test pass. Real lifecycle used by the user with VMware
   Desktop on Windows; the user marked the phase done without itemized step results.
   VirtualBox lifecycle not reported.
+
+## Phase 5 results (2026-10-28)
+| Check | Result |
+|---|---|
+| Rust tests, Linux | Pass: config-model 20 (new), project-service 30 + 1 opt-in (Vagrantfile read/save/stale/replace/backups/prune/create/symlink, templates editable visually), project-store 18, operation-engine 26 (environment lock), domain 15, platform 12, vagrant-adapter 26 |
+| Same crates (config-model, project-service, project-store, operation-engine) as Windows binaries | Pass (symlink test is Unix-only) |
+| `vagrant validate`, Windows Vagrant 2.4.9: 3 templates × 2 providers, their visual-editor regenerations, full-feature sample × 2 providers (CRLF) | **Pass**, 14/14 |
+| Inline scripts in generated files evaluated by Vagrant's embedded Ruby | Equal to the model (incl. `#{`, backslash continuation, indentation, CRLF file) |
+| clippy `-D warnings` / rustfmt | Pass |
+| Frontend lint, format, typecheck, tests, production build | Pass, 52 tests (8 new: visual editor, page flow incl. leave guard) |
+| Manual walkthrough on Windows | **Pending** |
+| Windows CI for Phases 3–5 | Not yet pushed |
+
+New dependencies: `@codemirror/{view 6.43.14, state 6.7.6, commands 6.11.1, search 6.7.2,
+language 6.13.1, legacy-modes 6.5.5, merge 6.12.2}` and `@lezer/highlight 1.2.5`, all
+published at least two weeks before they were added. `sha2 0.10` (already in the lockfile).
+New capability: `core:window:allow-destroy`, used by the unsaved-changes guard on window close.
 
 ## Phase 4 results (2026-10-28)
 | Check | Result |
@@ -123,9 +141,11 @@ Vagrant prints guest output to stdout; failure summaries of human-output command
 include the last output lines.
 
 ## Next recommended task
-1. Push and confirm the Windows CI run for Phases 3–4.
-2. Phase 5: Vagrantfile editor (raw editor, `crates/config-model`, visual forms, diff
-   preview, backup and atomic save).
-3. Optional: VirtualBox lifecycle run of `docs/testing/manual-lifecycle.md` on Windows.
-4. Before release: install the CI NSIS installer by hand on Windows 11.
-5. Later: re-enable the Ubuntu/Fedora CI jobs.
+1. User walkthrough of `docs/testing/manual-vagrantfile-editor.md` on Windows
+   (`pnpm build:win-local`); then mark Phase 5 complete.
+2. Push and confirm the Windows CI run for Phases 3–5.
+3. Phase 6: boxes, provider registry, networking and provisioning management
+   (extends the visual subset: public networks, more provider options).
+4. Optional: VirtualBox lifecycle run of `docs/testing/manual-lifecycle.md` on Windows.
+5. Before release: install the CI NSIS installer by hand on Windows 11.
+6. Later: re-enable the Ubuntu/Fedora CI jobs.

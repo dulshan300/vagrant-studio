@@ -8,7 +8,7 @@ Vagrant Studio: a Tauri 2 desktop app (Rust backend + Vue 3/TypeScript frontend)
 
 ## Commands
 
-pnpm is pinned via `packageManager` and run through Corepack. Use `corepack pnpm …` if `pnpm` isn't on PATH, and set `COREPACK_ENABLE_DOWNLOAD_PROMPT=0` in non-interactive shells, or it hangs on a download prompt.
+pnpm is pinned via `packageManager` and run through Corepack. Use `corepack pnpm …` if `pnpm` isn't on PATH, and set `COREPACK_ENABLE_DOWNLOAD_PROMPT=0` in non-interactive shells, or it hangs on a download prompt. The root scripts call `pnpm -r`, so without `pnpm` on PATH put a shim first (a script running `exec corepack pnpm "$@"`).
 
 ```sh
 pnpm install
@@ -36,7 +36,7 @@ The `vagrant-studio` crate (apps/desktop/src-tauri) needs WebKitGTK 4.1 dev pack
 
 ## Architecture (see docs/architecture.md)
 
-- **Modular monolith.** The Cargo workspace root is the repo root; members are `apps/desktop/src-tauri` and `crates/*`. The app crate holds only Tauri commands (`src-tauri/src/commands/`, errors mapped to `CommandError { kind, message, field, existing }`), wiring and the event bridge. Current crates: `platform` (host/WSL detection, executable discovery), `domain` (types, validation, portable format; no I/O), `project-store` (SQLite via SQLx, the `Store` type), `project-service` (`ProjectService`, the only code that writes to project folders), `vagrant-adapter` (`Runner`/`ProcessRunner`, `VagrantCommand`, machine-readable parsers, readiness checks), `operation-engine` (`OperationEngine`: operation records, redacted logs, events, cancellation). Future crates (`provider-registry`, `config-model`) are created only when their phase starts.
+- **Modular monolith.** The Cargo workspace root is the repo root; members are `apps/desktop/src-tauri` and `crates/*`. The app crate holds only Tauri commands (`src-tauri/src/commands/`, errors mapped to `CommandError { kind, message, field, existing }`), wiring and the event bridge. Current crates: `platform` (host/WSL detection, executable discovery), `domain` (types, validation, portable format; no I/O), `project-store` (SQLite via SQLx, the `Store` type), `project-service` (`ProjectService`, the only code that writes to project folders), `vagrant-adapter` (`Runner`/`ProcessRunner`, `VagrantCommand`, machine-readable parsers, readiness checks), `operation-engine` (`OperationEngine`: operation records, redacted logs, events, cancellation, environment locks), `config-model` (Vagrantfile subset: recognizer, validation, generator; no I/O). Future crates (`provider-registry`) are created only when their phase starts.
 - **Running Vagrant:** always through `OperationEngine` (user-visible commands) or the adapter's `Runner` (readiness probes); never `std::process::Command` directly. Don't combine `--no-tty` with `--machine-readable`; the last flag wins and you get human text (ADR-0008). Events go to the WebView on `vagrant-studio://operation`. Test parsers against `fixtures/command-output/` (CRLF preserved; never normalize them).
 - **Persistence:** migrations live in `/migrations` (embedded with `sqlx::migrate!`; never edit an applied migration, add a new one). SQLx 0.9 accepts only `&'static str` SQL; build variants with `concat!` macros, bind all values, and don't use `AssertSqlSafe`. Timestamps are RFC 3339 UTC with variable fraction digits, so compare parsed values, never strings (Rust or TS). Tests use `Store::open_in_memory()`, not mocks (ADR-0007).
 - **Vagrant is the lifecycle authority.** Only invoke the host's `vagrant` CLI, with an argv vector (never a shell string) and an explicit working directory set to the environment root. Machine state shown in the UI comes from `vagrant status`, never from the DB or guesses. Don't invent metrics; show "unknown/unavailable".
@@ -47,6 +47,8 @@ The `vagrant-studio` crate (apps/desktop/src-tauri) needs WebKitGTK 4.1 dev pack
 - **Tauri permissions are minimal** (`src-tauri/capabilities/default.json`). Don't add shell or fs plugin access for the WebView. External URLs must be allowlisted under `opener:allow-open-url`.
 
 ## Rules specific to this project
+
+- Vagrantfile editing (docs/vagrantfile-editor.md): only `project-service` writes Vagrantfiles, through `save_vagrantfile` (revision check, backup in app data, atomic rename) while holding the engine's environment lock. Extending the visual subset means changing lexer/parser, generator and validation together. `generate` must read back to an identical model, and the `render_all` output must pass `vagrant validate`.
 
 - Never overwrite user Vagrantfiles or project files without diff, backup and explicit confirmation (ADR-0005). Deleting app metadata must never delete files or destroy VMs. File deletion only goes to the OS trash, through `ProjectService::delete`'s safeguards (ADR-0007).
 - Paths: canonicalize with `dunce`, reject non-UTF-8, and check environment folders stay inside the project root. Windows filesystems are case-insensitive and `DirEntry::metadata()` is stale on Windows; use `fs::metadata(path)` when accuracy matters.

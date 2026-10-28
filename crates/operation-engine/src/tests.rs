@@ -744,3 +744,32 @@ async fn provisioner_failures_include_the_guest_output() {
         "{summary}"
     );
 }
+
+#[tokio::test]
+async fn environment_lock_is_refused_while_busy_and_holds_operations_back() {
+    let (runner, gate) = FakeRunner::new("", 0).with_status(STATUS_RUNNING).gated();
+    let h = harness(runner).await;
+    let up = h
+        .engine
+        .start(lifecycle_request(h.env, LifecycleAction::Up, &["web"]))
+        .await
+        .unwrap();
+    assert!(h.engine.try_lock_environment(h.env).is_none(), "running");
+    gate.add_permits(1);
+    eventually(|| !h.engine.is_running(up.id)).await;
+
+    let lock = h.engine.try_lock_environment(h.env).expect("idle");
+    assert!(
+        h.engine.try_lock_environment(h.env).is_none(),
+        "already held"
+    );
+    let status = h.engine.start(status_request(h.env)).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let calls = h.runner.calls().len();
+    let op = h.store.get_operation(status.id).await.unwrap().unwrap();
+    assert_eq!(op.status, OperationStatus::Queued, "waits for the lock");
+    drop(lock);
+    gate.add_permits(1);
+    eventually(|| !h.engine.is_running(status.id)).await;
+    assert_eq!(h.runner.calls().len(), calls + 1);
+}

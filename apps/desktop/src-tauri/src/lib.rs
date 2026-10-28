@@ -10,6 +10,8 @@ use vagrant_studio_project_store::Store;
 use vagrant_studio_vagrant_adapter::ProcessRunner;
 
 const DATABASE_FILE: &str = "vagrant-studio.db";
+/// Vagrantfile backups, one folder per environment id.
+const BACKUPS_DIR: &str = "backups";
 
 pub fn run() {
     init_tracing();
@@ -34,7 +36,7 @@ pub fn run() {
                 logs_dir(&data_dir),
             );
             tauri::async_runtime::block_on(engine.recover())?;
-            app.manage(ProjectService::new(store));
+            app.manage(ProjectService::new(store).with_backups_dir(data_dir.join(BACKUPS_DIR)));
             app.manage(engine);
             Ok(())
         })
@@ -60,6 +62,12 @@ pub fn run() {
             commands::projects::get_settings,
             commands::projects::save_settings,
             commands::projects::open_project_folder,
+            commands::vagrantfile::get_vagrantfile,
+            commands::vagrantfile::analyze_vagrantfile,
+            commands::vagrantfile::generate_vagrantfile,
+            commands::vagrantfile::save_vagrantfile,
+            commands::vagrantfile::list_vagrantfile_backups,
+            commands::vagrantfile::read_vagrantfile_backup,
             commands::operations::get_host_readiness,
             commands::operations::refresh_environment_status,
             commands::operations::validate_environment,

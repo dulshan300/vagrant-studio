@@ -5,12 +5,13 @@ use vagrant_studio_project_service::ServiceError;
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CommandError {
-    /// validation | notFound | conflict | confirmationRequired | unsafe | io | unavailable | internal
+    /// validation | notFound | conflict | confirmationRequired | stale | unsafe | io | unavailable | internal
     pub kind: &'static str,
     pub message: String,
     /// Input field the error refers to (validation errors only).
     pub field: Option<&'static str>,
-    /// Current content when confirmation is required (e.g. an existing project.json).
+    /// Current file content for `confirmationRequired` (e.g. an existing
+    /// project.json) and `stale` (the Vagrantfile as it is now on disk).
     pub existing: Option<String>,
 }
 
@@ -32,6 +33,10 @@ impl CommandError {
         Self::new("validation", message)
     }
 
+    pub fn conflict(message: impl Into<String>) -> Self {
+        Self::new("conflict", message)
+    }
+
     /// A prerequisite (e.g. Vagrant itself) is missing.
     pub fn unavailable(message: impl Into<String>) -> Self {
         Self::new("unavailable", message)
@@ -50,6 +55,10 @@ impl From<ServiceError> for CommandError {
             ServiceError::ConfirmationRequired { message, existing } => Self {
                 existing,
                 ..Self::new("confirmationRequired", message)
+            },
+            ServiceError::Stale { message, existing } => Self {
+                existing,
+                ..Self::new("stale", message)
             },
             ServiceError::Unsafe(m) => Self::new("unsafe", m),
             ServiceError::Portable(e) => Self::new("validation", e.to_string()),

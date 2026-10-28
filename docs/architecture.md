@@ -48,13 +48,14 @@ Vagrant owns.
 | `vagrant-adapter` | `Runner` trait + `ProcessRunner` (process-wrap: Job Object / process group, streaming, timeout, cancel), typed `VagrantCommand` → argv, `--machine-readable` parsers (fixture-tested), Vagrant discovery/version, host readiness checks | platform, tokio, process-wrap | build shell strings |
 | `operation-engine` | `OperationEngine`: operation records, redacted log files, `EventSink` events, cancellation, crash recovery, status snapshots (Phase 3); per-environment scheduling and conflicts (Phase 4) | domain, vagrant-adapter, project-store | depend on Tauri directly |
 | `provider-registry` | `ProviderAdapter` trait, capability flags, prerequisite checks | domain, platform, vagrant-adapter | promise capabilities that detection didn't confirm |
-| `config-model` | Supported-subset Vagrantfile model, generator, "can this be edited visually" analysis, backups and diffs | domain | rewrite user Ruby it doesn't understand |
+| `config-model` | Supported-subset Vagrantfile model, recognizer ("can this be edited visually"), validation, generator with checksum header (docs/vagrantfile-editor.md); no I/O. Backups and atomic saves are in `project-service` | serde, sha2 | rewrite user Ruby it doesn't understand |
 | `src-tauri` (app) | Tauri commands, event bridge (`EventSink` impl), state wiring, tracing setup, capabilities | all crates | contain business logic |
 
 Crates are created **when the phase that needs them starts** (see the
 roadmap), so the workspace never holds empty scaffolding. Present so far:
 `platform` (Phase 1); `domain`, `project-store` and `project-service`
-(Phase 2); `vagrant-adapter` and `operation-engine` (Phase 3).
+(Phase 2); `vagrant-adapter` and `operation-engine` (Phase 3); `config-model`
+(Phase 5).
 
 Every trait that touches the outside world (`VagrantExecutor`,
 `PlatformAdapter`, `EventSink`) has a fake implementation for tests.
@@ -175,11 +176,18 @@ Vagrantfiles are Ruby. The app never claims to fully parse them.
    a header and a model checksum) or on files that pass a conservative
    recognizer for the supported subset. Anything else opens read-only in
    visual mode with an explanation.
-3. **Diff preview** is required before any write the app generates. Writes
-   are atomic (temp file plus rename), and a timestamped backup is made
-   before any automated edit.
-4. Imported files are never overwritten with generated content without an
-   explicit "replace" confirmation that shows the diff.
+3. **Diff preview** comes before every save, raw or visual. Writes are
+   atomic (temp file plus rename). A timestamped backup of the previous
+   content is kept in the app data folder (`backups/<environment id>/`, newest
+   50), never in the project folder.
+4. Files the visual editor didn't write are never replaced with generated
+   content without an explicit "replace" confirmation that shows the diff.
+5. A save is refused if the file changed on disk since the editor read it
+   (SHA-256 revision), or if a Vagrant operation is queued or running for the
+   environment. The save holds the environment's write lock, so operations
+   requested meanwhile wait.
+
+Implementation details and the supported subset: `docs/vagrantfile-editor.md`.
 
 ## 8. Platform strategy
 

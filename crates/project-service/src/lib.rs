@@ -6,10 +6,13 @@
 //! * deleting removes metadata only, unless the user explicitly asks to move the
 //!   folder to the OS trash, typed the project name, and no Vagrant machines
 //!   appear to exist;
-//! * portable metadata is shown before writing and never overwritten silently.
+//! * portable metadata is shown before writing and never overwritten silently;
+//! * Vagrantfile saves check for changes on disk, keep a backup in the app
+//!   data folder and replace the file atomically (`vagrantfile.rs`).
 
 mod inspect;
 pub mod templates;
+mod vagrantfile;
 
 use std::collections::HashSet;
 use std::io::Write as _;
@@ -29,6 +32,10 @@ use vagrant_studio_project_store::{ProjectFilter, ProjectUpdate, Store, StoreErr
 
 pub use inspect::{DetectedEnvironment, FolderInspection};
 pub use templates::Template;
+pub use vagrantfile::{
+    KEEP_BACKUPS, MAX_VAGRANTFILE_BYTES, SaveVagrantfileOutcome, SaveVagrantfileRequest,
+    VagrantfileBackup, VagrantfileDocument,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ServiceError {
@@ -42,6 +49,13 @@ pub enum ServiceError {
     /// current content where useful (e.g. an existing project.json).
     #[error("{message}")]
     ConfirmationRequired {
+        message: String,
+        existing: Option<String>,
+    },
+    /// The file changed on disk since the user read it; `existing` is the
+    /// current content (`None` if it was deleted).
+    #[error("{message}")]
+    Stale {
         message: String,
         existing: Option<String>,
     },
@@ -169,6 +183,8 @@ type TrashFn = dyn Fn(&Path) -> std::io::Result<()> + Send + Sync;
 pub struct ProjectService {
     store: Store,
     trash: Box<TrashFn>,
+    /// Vagrantfile backups go to `<backups>/<environment id>/`.
+    backups: Option<PathBuf>,
 }
 
 impl ProjectService {
@@ -186,7 +202,15 @@ impl ProjectService {
         Self {
             store,
             trash: Box::new(trash),
+            backups: None,
         }
+    }
+
+    /// Folder (in the app data directory) for Vagrantfile backups. Saving a
+    /// Vagrantfile is refused until one is set.
+    pub fn with_backups_dir(mut self, dir: impl Into<PathBuf>) -> Self {
+        self.backups = Some(dir.into());
+        self
     }
 
     pub fn templates(&self) -> Vec<Template> {

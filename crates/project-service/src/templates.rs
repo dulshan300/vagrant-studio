@@ -195,6 +195,44 @@ mod tests {
         }
     }
 
+    /// Template projects open in the visual editor, and saving them without
+    /// changes regenerates the same model.
+    #[test]
+    fn every_template_is_editable_visually() {
+        use vagrant_studio_config_model::{LineEnding, ProviderKind, analyze, generate};
+        for t in all() {
+            for (provider, _) in TEMPLATE_PROVIDERS {
+                let a = analyze(&t.render(provider).unwrap());
+                let model = a
+                    .model
+                    .unwrap_or_else(|| panic!("{} {provider}: {:?}", t.id, a.unsupported));
+                assert!(a.errors.is_empty(), "{} {provider}: {:?}", t.id, a.errors);
+                assert!(
+                    a.warnings.is_empty(),
+                    "{} {provider}: {:?}",
+                    t.id,
+                    a.warnings
+                );
+                assert!(!a.managed);
+                let names: Vec<&str> = model.machines.iter().map(|m| m.name.as_str()).collect();
+                if t.machines == ["default"] {
+                    assert!(names.is_empty());
+                    assert_eq!(model.defaults.providers.len(), 1);
+                } else {
+                    assert_eq!(names, t.machines);
+                    for m in &model.machines {
+                        assert_eq!(
+                            m.settings.providers[0].provider,
+                            ProviderKind::parse(provider).unwrap()
+                        );
+                    }
+                }
+                let regenerated = generate(&model, LineEnding::Lf).unwrap();
+                assert_eq!(analyze(&regenerated).model, Some(model));
+            }
+        }
+    }
+
     #[test]
     fn provider_blocks_keep_indentation_and_values() {
         let t = find("web-database").unwrap();
@@ -211,21 +249,132 @@ mod tests {
         ));
     }
 
-    /// Writes every template × provider render for checking with
-    /// `vagrant validate` (see docs/implementation-status.md):
+    /// Writes every template × provider render, the visual editor's version
+    /// of each, and a sample using every visual-editor feature, for checking
+    /// with `vagrant validate` (see docs/implementation-status.md):
     /// `VAGRANT_STUDIO_RENDER_DIR=<dir> cargo test -p vagrant-studio-project-service -- --ignored render_all`
     #[test]
     #[ignore = "writes files for manual validation with Vagrant"]
     fn render_all_for_validation() {
+        use vagrant_studio_config_model::{LineEnding, analyze, generate};
         let dir = std::path::PathBuf::from(
             std::env::var("VAGRANT_STUDIO_RENDER_DIR").expect("VAGRANT_STUDIO_RENDER_DIR"),
         );
+        let write = |name: String, content: String| {
+            let out = dir.join(name);
+            std::fs::create_dir_all(&out).unwrap();
+            std::fs::write(out.join("Vagrantfile"), content).unwrap();
+            out
+        };
         for t in all() {
             for (provider, _) in TEMPLATE_PROVIDERS {
-                let out = dir.join(format!("{}--{provider}", t.id));
-                std::fs::create_dir_all(&out).unwrap();
-                std::fs::write(out.join("Vagrantfile"), t.render(provider).unwrap()).unwrap();
+                let rendered = t.render(provider).unwrap();
+                let model = analyze(&rendered).model.unwrap();
+                write(format!("{}--{provider}", t.id), rendered);
+                write(
+                    format!("{}--{provider}--visual", t.id),
+                    generate(&model, LineEnding::Lf).unwrap(),
+                );
             }
+        }
+        for (provider, _) in TEMPLATE_PROVIDERS {
+            let out = write(
+                format!("visual-features--{provider}"),
+                generate(&feature_sample(provider), LineEnding::Crlf).unwrap(),
+            );
+            std::fs::create_dir_all(out.join("scripts")).unwrap();
+            std::fs::write(out.join("scripts/setup.sh"), "#!/bin/sh\necho setup\n").unwrap();
+        }
+    }
+
+    /// Every setting the visual editor supports, in one multi-machine file.
+    fn feature_sample(provider: &str) -> vagrant_studio_config_model::VagrantConfig {
+        use vagrant_studio_config_model::*;
+        let kind = ProviderKind::parse(provider).unwrap();
+        VagrantConfig {
+            defaults: MachineSettings {
+                box_name: Some("bento/ubuntu-24.04".into()),
+                synced_folders: vec![SyncedFolder {
+                    host_path: ".".into(),
+                    guest_path: "/vagrant".into(),
+                    disabled: true,
+                }],
+                provisioners: vec![ShellProvisioner {
+                    source: ShellSource::Inline {
+                        script: "echo \"shared #{1}\" \\\n  && true\n".into(),
+                    },
+                    run: Some(ProvisionRun::Always),
+                    privileged: Some(false),
+                }],
+                ..Default::default()
+            },
+            machines: vec![
+                MachineDefinition {
+                    name: "web-1".into(),
+                    primary: true,
+                    autostart: true,
+                    settings: MachineSettings {
+                        hostname: Some("web-1.local".into()),
+                        private_networks: vec![PrivateNetwork {
+                            ip: Some("192.168.56.30".into()),
+                        }],
+                        forwarded_ports: vec![
+                            ForwardedPort {
+                                guest: 80,
+                                host: 18080,
+                                host_ip: Some("127.0.0.1".into()),
+                                protocol: None,
+                            },
+                            ForwardedPort {
+                                guest: 53,
+                                host: 15353,
+                                host_ip: None,
+                                protocol: Some(Protocol::Udp),
+                            },
+                        ],
+                        synced_folders: vec![SyncedFolder {
+                            host_path: "scripts".into(),
+                            guest_path: "/opt/scripts".into(),
+                            disabled: false,
+                        }],
+                        providers: vec![ProviderSettings {
+                            provider: kind,
+                            cpus: Some(1),
+                            memory_mb: Some(1024),
+                        }],
+                        provisioners: vec![ShellProvisioner {
+                            source: ShellSource::Inline {
+                                script: "apt-get update -y\n  echo indented\n".into(),
+                            },
+                            run: None,
+                            privileged: None,
+                        }],
+                        ..Default::default()
+                    },
+                },
+                MachineDefinition {
+                    name: "db".into(),
+                    primary: false,
+                    autostart: false,
+                    settings: MachineSettings {
+                        box_name: Some("bento/debian-12".into()),
+                        private_networks: vec![PrivateNetwork { ip: None }],
+                        providers: vec![ProviderSettings {
+                            provider: kind,
+                            cpus: None,
+                            memory_mb: Some(512),
+                        }],
+                        provisioners: vec![ShellProvisioner {
+                            source: ShellSource::Path {
+                                path: "scripts/setup.sh".into(),
+                            },
+                            run: Some(ProvisionRun::Once),
+                            privileged: Some(true),
+                        }],
+                        ..Default::default()
+                    },
+                },
+            ],
         }
     }
 

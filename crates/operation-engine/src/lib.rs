@@ -121,6 +121,11 @@ pub struct StatusError {
     pub message: String,
 }
 
+/// Holds an environment's write lock; operations for it wait until dropped.
+pub struct EnvironmentLock {
+    _guard: tokio::sync::OwnedRwLockWriteGuard<()>,
+}
+
 #[derive(Clone)]
 pub struct OperationEngine {
     inner: Arc<Inner>,
@@ -267,6 +272,26 @@ impl OperationEngine {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
             Err(source) => Err(EngineError::Logs { path, source }),
         }
+    }
+
+    /// Takes the environment's write lock for work outside Vagrant (saving
+    /// its Vagrantfile), so no operation runs on the environment meanwhile.
+    /// `None` while any operation is queued or running for it.
+    pub fn try_lock_environment(&self, environment_id: EnvironmentId) -> Option<EnvironmentLock> {
+        let busy = self
+            .inner
+            .active
+            .lock()
+            .expect("lock")
+            .values()
+            .any(|a| a.environment_id == Some(environment_id));
+        if busy {
+            return None;
+        }
+        self.inner
+            .locks
+            .try_write(environment_id)
+            .map(|guard| EnvironmentLock { _guard: guard })
     }
 
     /// Whether the operation is queued or running.

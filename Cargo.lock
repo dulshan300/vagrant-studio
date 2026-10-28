@@ -4633,12 +4633,23 @@ dependencies = [
  "tauri-plugin-opener",
  "tracing",
  "tracing-subscriber",
+ "vagrant-studio-config-model",
  "vagrant-studio-domain",
  "vagrant-studio-operation-engine",
  "vagrant-studio-platform",
  "vagrant-studio-project-service",
  "vagrant-studio-project-store",
  "vagrant-studio-vagrant-adapter",
+]
+
+[[package]]
+name = "vagrant-studio-config-model"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -4694,6 +4705,7 @@ dependencies = [
  "tokio",
  "tracing",
  "trash",
+ "vagrant-studio-config-model",
  "vagrant-studio-domain",
  "vagrant-studio-project-store",
 ]
