@@ -25,8 +25,8 @@ Smallest sequence:
 7. [x] Settings page: theme, plus app and host info from the backend command `get_app_info`
 8. [x] `src-tauri`: Tauri 2 app, tracing, minimal capabilities, `get_app_info` (compiles; launches under WSLg)
 9. [x] ESLint (flat) + Prettier + vue-tsc + Vitest; rustfmt + clippy `-D warnings`
-10. [~] CI: per-platform frontend checks, Rust checks, native build and package on Windows, Ubuntu, Fedora container (written; not yet run)
-11. [ ] Verified launch on Windows 11 and Ubuntu (needs a CI run on GitHub and/or a native host)
+10. [x] CI: frontend checks, Rust checks, native build and package. Windows green; Ubuntu/Fedora jobs paused
+11. [x] Verified launch on Windows 11 (2026-10-28). Ubuntu/Fedora deferred with Linux CI
 
 Acceptance: app launches on target OSes; UI navigable; CI runs tests; no new warnings.
 

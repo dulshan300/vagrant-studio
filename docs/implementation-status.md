@@ -3,11 +3,13 @@
 _Last updated: 2026-10-28_
 
 ## Current phase
-**Phase 1 — Desktop foundation: compiles and launches in WSL2; native platforms not yet verified (CI not run).**
+**Phase 1 — Desktop foundation: complete for Windows** (Linux native builds paused). Next: Phase 2.
 
 ## Completed phases
 - **Phase 0 — Inspection and planning** (2026-10-28): architecture, roadmap,
   provider capabilities, ADRs 0001–0006, risks (architecture.md §11).
+- **Phase 1 — Desktop foundation** (2026-10-28, Windows): green Windows CI with NSIS
+  installer; native Windows launch verified by the user.
 
 ## Phase 1 progress
 | Task | State |
@@ -23,7 +25,7 @@ _Last updated: 2026-10-28_
 | CI: Windows build, test and package | **Pass** (run 40716119723, `93ffb16`, 2026-10-28): all checks, MSVC build, NSIS installer artifact (2.3 MB) |
 | CI: Ubuntu / Fedora jobs | **Paused** by decision 2026-10-28 (Windows first); `.deb`/`.rpm` did build locally in WSL after the Tauri version fix |
 | App launch in WSL2 (WSLg) | Verified by the user 2026-10-28: window renders, sidebar navigation works, host readiness shows WSL + Vagrant path |
-| Windows 11 installer install and launch | **Not verified yet**: download the CI artifact and test it |
+| Windows 11 native launch | **Verified by the user 2026-10-28** (local windows-gnu build: UI renders, Windows host detected). NSIS installer from CI not yet installed by hand |
 | Ubuntu / Fedora launch | Not verified (Linux CI paused) |
 
 ## Test results (WSL2 Ubuntu 24.04, 2026-10-28)
@@ -69,4 +71,4 @@ None recorded.
 ## Next recommended task
 1. Push to a GitHub repository so CI runs on all three platforms; record the
    results here.
-2. Start Phase 2 with `crates/domain` and `crates/project-store` (SQLite migrations).
+1. Start Phase 2 with `crates/domain` and `crates/project-store` (SQLite migrations).
