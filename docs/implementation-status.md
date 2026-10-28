@@ -21,7 +21,7 @@ _Last updated: 2026-10-28_
 | Tauri app crate, minimal capabilities, `get_app_info` | Done; compiles, clippy clean, launches under WSLg |
 | ESLint, Prettier, vue-tsc, Vitest, rustfmt, clippy | Done |
 | CI: Windows / Ubuntu / Fedora-container build, test and package | Written; **not run yet** (no GitHub remote) |
-| App launch in WSL2 (WSLg) | Process starts and stays up; window rendering not yet visually confirmed |
+| App launch in WSL2 (WSLg) | Verified by the user 2026-10-28: window renders, sidebar navigation works, host readiness shows WSL + Vagrant path |
 | App launch on Windows 11 / Ubuntu / Fedora | **Not verified** |
 
 ## Test results (WSL2 Ubuntu 24.04, 2026-10-28)
@@ -56,7 +56,6 @@ _Last updated: 2026-10-28_
 None recorded.
 
 ## Next recommended task
-1. Visually confirm the WSLg window renders (theme switch, navigation).
-2. Push to a GitHub repository so CI runs on all three platforms; record the
+1. Push to a GitHub repository so CI runs on all three platforms; record the
    results here.
-3. Start Phase 2 with `crates/domain` and `crates/project-store` (SQLite migrations).
+2. Start Phase 2 with `crates/domain` and `crates/project-store` (SQLite migrations).

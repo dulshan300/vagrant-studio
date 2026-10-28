@@ -39,7 +39,10 @@ const host = computed(() => (app.info ? describeHost(app.info.host) : null))
           <span v-if="app.info.vagrantPath" class="flex items-start gap-2">
             <CircleCheck class="mt-0.5 size-4 shrink-0 text-status-running" aria-hidden="true" />
             <span>
-              Found at <code class="font-mono text-xs break-all">{{ app.info.vagrantPath }}</code>
+              Found
+              <code class="block font-mono text-xs [overflow-wrap:anywhere]">{{
+                app.info.vagrantPath
+              }}</code>
               <span class="block text-xs text-muted"
                 >Version and provider checks run once the CLI integration is in place.</span
               >
