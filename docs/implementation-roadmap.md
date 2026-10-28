@@ -42,7 +42,7 @@ Acceptance: app launches on target OSes; UI navigable; CI runs tests; no new war
 - [x] Tests: repositories, migrations, restart persistence, import leaves files unchanged, metadata delete keeps files, deletion safeguards, portable round-trip; run on Linux and as Windows binaries
 - [ ] Notes and tasks UI (tables exist; UI scheduled with the developer workspace in Phase 7)
 
-## Phase 3 — Vagrant CLI integration
+## Phase 3 — Vagrant CLI integration (complete 2026-10-28, Windows)
 - [x] `crates/vagrant-adapter`: discovery (setting override → PATH → install locations), `--version`, typed `VagrantCommand` → argv, `ProcessRunner` (process-wrap; Job Object on Windows, process group on Linux; streaming; timeout; cancel; no console windows)
 - [x] `--machine-readable` parsers for status, box list, plugin list, error-exit; fixtures captured from Windows Vagrant 2.4.9 (`fixtures/command-output/`)
 - [x] `crates/operation-engine`: operation rows + log files, redaction, `EventSink` events, cancellation, crash recovery (`interrupted`), environment status snapshots
@@ -51,7 +51,7 @@ Acceptance: app launches on target OSes; UI navigable; CI runs tests; no new war
 - [x] Operations page, live output drawer with cancel; environment panel (Refresh status, Validate, machines); dashboard recent operations and machine counts; Virtual Machines page
 - [x] Tests: fake runner, fixture parsers, real processes (cancel/timeout/argv), opt-in real Vagrant (`--ignored`), all also run as Windows binaries
 - [x] Provider choice (user request): templates are provider-neutral (`Vagrantfile.tmpl`) and rendered for VirtualBox or VMware Desktop; New project picks from detected providers; app-wide default provider in Settings; per-environment provider editable; Add environment / Import set it too. All 3 templates × 2 providers pass `vagrant validate` (Windows Vagrant 2.4.9); `bento/ubuntu-24.04` is published for both providers.
-- [ ] Manual check on Windows: user walkthrough
+- [x] Manual check on Windows: user walkthrough
 
 ## Phase 4 — Multi-machine lifecycle
 - [ ] Machine discovery from `vagrant status --machine-readable` per environment

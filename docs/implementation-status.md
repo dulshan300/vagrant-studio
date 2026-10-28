@@ -3,7 +3,7 @@
 _Last updated: 2026-10-28_
 
 ## Current phase
-**Phase 2 — Persistence and project management: complete (Windows).** Next: Phase 3, Vagrant CLI integration.
+**Phase 3 — Vagrant CLI integration: complete (Windows).** Next: Phase 4, multi-machine lifecycle.
 
 ## Completed phases
 - **Phase 0 — Inspection and planning** (2026-10-28): architecture, roadmap,
@@ -13,7 +13,22 @@ _Last updated: 2026-10-28_
 - **Phase 2 — Persistence and project management** (2026-10-28, Windows): automated
   acceptance tests pass on Linux and as Windows binaries; user walkthrough on Windows
   (create from template, import, favorite/tags/archive, portable file, restart
-  persistence, metadata-only remove) found no issues.
+  persistence, metadata-only remove) found no issues. Windows CI green.
+- **Phase 3 — Vagrant CLI integration** (2026-10-28, Windows): process runner, operation
+  engine, readiness checks, Operations/Providers/Machines pages, provider selection
+  (VirtualBox, VMware Desktop). Tests pass on Linux and as Windows binaries, including
+  opt-in real Vagrant 2.4.9 + VMware Desktop. User walkthrough on Windows passed.
+
+## Phase 3 results (2026-10-28)
+| Check | Result |
+|---|---|
+| Rust tests, Linux | Pass: domain 15, platform 12, project-store 20, project-service 18, vagrant-adapter 24, operation-engine 11 |
+| Same crates as Windows binaries | Pass |
+| Opt-in real Vagrant test (Windows Vagrant 2.4.9, `vmware_desktop`) | Pass: version, multi-machine status |
+| Templates × providers `vagrant validate` (3 × 2, Windows) | Pass |
+| Frontend lint, typecheck, tests | Pass, 32 tests |
+| Manual walkthrough on Windows (readiness, refresh status, validate, operations history, provider selection) | **Pass**: user, 2026-10-28 |
+| Windows CI for Phase 3 | Not yet pushed |
 
 ## Phase 2 results (2026-10-28)
 | Check | Result |
@@ -86,7 +101,7 @@ use MSVC in CI. Windows has no local MSVC or Rust install.
 None recorded.
 
 ## Next recommended task
-1. Push and confirm the Windows CI run for Phase 2.
-2. Start Phase 3: `crates/vagrant-adapter` (Vagrant discovery and version, typed argv builder, streaming process runner with cancellation, `--machine-readable` parsers with fixtures) and `crates/operation-engine` (operation records, log files, crash recovery, events), then the Operations page.
+1. Push and confirm the Windows CI run for Phase 3.
+2. Phase 4: machine lifecycle (up/halt/reload/suspend/resume/provision/destroy), per machine and per environment; per-environment operation lock and conflict handling; destructive confirmations; status refresh after each operation; real lifecycle verification with VMware Desktop on Windows.
 3. Before release: install the CI NSIS installer by hand on Windows 11.
 4. Later: re-enable the Ubuntu/Fedora CI jobs.
