@@ -48,3 +48,7 @@ id_type!(
     /// Stable identifier of an environment in the local database.
     EnvironmentId
 );
+id_type!(
+    /// Stable identifier of a recorded operation.
+    OperationId
+);

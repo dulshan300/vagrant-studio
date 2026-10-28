@@ -1,5 +1,13 @@
 export type MachineState =
-  'running' | 'stopped' | 'starting' | 'stopping' | 'provisioning' | 'failed' | 'unknown'
+  | 'running'
+  | 'stopped'
+  | 'starting'
+  | 'stopping'
+  | 'provisioning'
+  | 'failed'
+  | 'suspended'
+  | 'notCreated'
+  | 'unknown'
 
 interface StateStyle {
   label: string
@@ -16,6 +24,12 @@ export const MACHINE_STATE_STYLES: Record<MachineState, StateStyle> = {
   stopping: { label: 'Stopping', dot: 'bg-status-transition', pulse: true },
   provisioning: { label: 'Provisioning', dot: 'bg-status-provisioning', pulse: true },
   failed: { label: 'Failed', dot: 'bg-status-failed', pulse: false },
+  suspended: { label: 'Suspended', dot: 'bg-status-provisioning', pulse: false },
+  notCreated: {
+    label: 'Not created',
+    dot: 'bg-transparent ring-1 ring-status-stopped',
+    pulse: false,
+  },
   unknown: { label: 'Unknown', dot: 'bg-status-unknown', pulse: false },
 }
 

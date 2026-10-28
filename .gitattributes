@@ -2,3 +2,6 @@
 *.png binary
 *.ico binary
 *.icns binary
+
+# Command-output fixtures keep their original line endings (Vagrant on Windows prints CRLF).
+fixtures/** -text

@@ -5,7 +5,9 @@ import FormField from '@/components/ui/form/FormField.vue'
 import TextInput from '@/components/ui/form/TextInput.vue'
 import FolderInput from '@/components/ui/form/FolderInput.vue'
 import { Button } from '@/components/ui/button'
+import ProviderSelect from '@/components/providers/ProviderSelect.vue'
 import { useFormErrors } from '@/composables/useFormErrors'
+import { useProviderChoices } from '@/composables/useProviderChoices'
 import { projectsApi } from '@/services/projects'
 import type { Environment, EnvironmentType } from '@/types/projects'
 
@@ -17,7 +19,9 @@ const errors = useFormErrors()
 const name = ref('')
 const folder = ref('')
 const type = ref<EnvironmentType>('development')
+const provider = ref<string | null>(null)
 const busy = ref(false)
+const providers = useProviderChoices()
 
 watch(open, (isOpen) => {
   if (!isOpen) return
@@ -25,6 +29,7 @@ watch(open, (isOpen) => {
   name.value = ''
   folder.value = props.projectRoot
   type.value = 'development'
+  provider.value = providers.defaultProvider.value
 })
 
 function onPicked(path: string) {
@@ -38,6 +43,7 @@ async function submit() {
       name: name.value,
       relativePath: folder.value,
       environmentType: type.value,
+      defaultProvider: provider.value,
     })
     emit('added', env)
     open.value = false
@@ -86,6 +92,14 @@ async function submit() {
           </select>
         </FormField>
       </div>
+      <FormField label="Provider" for="ae-provider" :error="errors.field.value.provider">
+        <ProviderSelect
+          id="ae-provider"
+          v-model="provider"
+          :choices="providers.choices.value"
+          allow-unset
+        />
+      </FormField>
       <p v-if="errors.general.value" class="text-sm text-status-failed" role="alert">
         {{ errors.general.value }}
       </p>

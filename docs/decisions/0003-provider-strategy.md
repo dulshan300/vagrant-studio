@@ -24,3 +24,25 @@ support without testing would mislead users.
 - The first release makes narrow but honest claims.
 - Adding a provider means implementing an adapter, its prerequisite checks
   and its integration tests, plus a row in the verification log.
+
+## Amendment (2026-10-28): VMware Desktop on Windows
+At the user's request, **VMware Desktop (`vmware_desktop`) on Windows** is the
+provider path used for real-VM verification on Windows. The development
+machine has VMware Workstation 25.0.0, the `vagrant-vmware-desktop` 3.0.5
+plugin and the Vagrant VMware Utility (`VagrantVMware` service, manual start).
+VirtualBox remains a candidate path. The capability model is unchanged.
+
+Prerequisite checks for this path: `vmrun` present, plugin installed, and the
+utility service reachable (when it isn't, `vagrant status` fails with
+`DriverAPIRequestUnexpectedError` / connection refused on 127.0.0.1:9922;
+see fixture `status-multi-not-created-vmware.txt`). Vagrant Studio reports a
+stopped service and explains how to start it; it never starts services itself.
+
+## Amendment (2026-10-28): choosing a provider
+Users choose the provider when creating a project from a template. Templates
+are stored provider-neutral (`templates/*/Vagrantfile.tmpl`) and rendered for
+the chosen provider, so a generated Vagrantfile contains only that provider's
+block. The choice is stored as the environment's default provider and passed
+to Vagrant as `VAGRANT_DEFAULT_PROVIDER`. An app-wide default (Settings) is
+pre-selected; providers that readiness checks report as not installed can't be
+chosen. Existing machines keep the provider they were created with.

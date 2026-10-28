@@ -42,6 +42,8 @@ export const projectsApi = {
     call<DeleteOutcome>('delete_project', { id, request }),
   addEnvironment: (projectId: string, request: EnvironmentRequest) =>
     call<Environment>('add_environment', { projectId, request }),
+  setEnvironmentProvider: (id: string, provider: string | null) =>
+    call<Environment>('set_environment_provider', { id, provider }),
   removeEnvironment: (id: string) => call<void>('remove_environment', { id }),
   previewMetadata: (id: string) => call<PortablePreview>('preview_project_metadata', { id }),
   writeMetadata: (id: string, overwrite: boolean) =>

@@ -1,0 +1,11 @@
+1793205303,web,metadata,provider,vmware_desktop
+1793205304,db,metadata,provider,vmware_desktop
+1793205304,web,provider-name,vmware_desktop
+1793205304,web,state,not_created
+1793205304,web,state-human-short,not created
+1793205304,web,state-human-long,The VMware machine has not yet been created. Run `vagrant up`\nto create the machine. If a machine is not created%!(VAGRANT_COMMA) only the\ndefault provider will be shown. Therefore%!(VAGRANT_COMMA) if a provider is not listed%!(VAGRANT_COMMA)\nthen the machine is not created for that provider.
+1793205304,db,provider-name,vmware_desktop
+1793205304,db,state,not_created
+1793205304,db,state-human-short,not created
+1793205304,db,state-human-long,The VMware machine has not yet been created. Run `vagrant up`\nto create the machine. If a machine is not created%!(VAGRANT_COMMA) only the\ndefault provider will be shown. Therefore%!(VAGRANT_COMMA) if a provider is not listed%!(VAGRANT_COMMA)\nthen the machine is not created for that provider.
+1793205304,,ui,info,Current machine states:\n\nweb                       not created (vmware_desktop)\ndb                        not created (vmware_desktop)\n\nThis environment represents multiple VMs. The VMs are all listed\nabove with their current state. For more information about a specific\nVM%!(VAGRANT_COMMA) run `vagrant status NAME`.

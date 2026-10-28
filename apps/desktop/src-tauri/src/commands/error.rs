@@ -5,7 +5,7 @@ use vagrant_studio_project_service::ServiceError;
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CommandError {
-    /// validation | notFound | conflict | confirmationRequired | unsafe | io | internal
+    /// validation | notFound | conflict | confirmationRequired | unsafe | io | unavailable | internal
     pub kind: &'static str,
     pub message: String,
     /// Input field the error refers to (validation errors only).
@@ -26,6 +26,11 @@ impl CommandError {
 
     pub fn internal(message: impl Into<String>) -> Self {
         Self::new("internal", message)
+    }
+
+    /// A prerequisite (e.g. Vagrant itself) is missing.
+    pub fn unavailable(message: impl Into<String>) -> Self {
+        Self::new("unavailable", message)
     }
 }
 
@@ -57,3 +62,10 @@ impl From<ServiceError> for CommandError {
 }
 
 pub type CommandResult<T> = Result<T, CommandError>;
+
+impl From<vagrant_studio_operation_engine::EngineError> for CommandError {
+    fn from(err: vagrant_studio_operation_engine::EngineError) -> Self {
+        tracing::error!(error = %err, "operation engine error");
+        Self::internal(err.to_string())
+    }
+}

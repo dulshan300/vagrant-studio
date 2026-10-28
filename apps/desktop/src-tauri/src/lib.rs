@@ -1,9 +1,13 @@
 mod commands;
 
+use std::sync::Arc;
+
 use tauri::Manager;
 use tracing_subscriber::EnvFilter;
+use vagrant_studio_operation_engine::{OperationEngine, logs_dir};
 use vagrant_studio_project_service::ProjectService;
 use vagrant_studio_project_store::Store;
+use vagrant_studio_vagrant_adapter::ProcessRunner;
 
 const DATABASE_FILE: &str = "vagrant-studio.db";
 
@@ -23,7 +27,15 @@ pub fn run() {
             let db_path = data_dir.join(DATABASE_FILE);
             tracing::info!(path = %db_path.display(), "opening database");
             let store = tauri::async_runtime::block_on(Store::open(&db_path))?;
+            let engine = OperationEngine::new(
+                store.clone(),
+                Arc::new(ProcessRunner),
+                Arc::new(commands::operations::TauriSink(app.handle().clone())),
+                logs_dir(&data_dir),
+            );
+            tauri::async_runtime::block_on(engine.recover())?;
             app.manage(ProjectService::new(store));
+            app.manage(engine);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -40,6 +52,7 @@ pub fn run() {
             commands::projects::mark_project_opened,
             commands::projects::delete_project,
             commands::projects::add_environment,
+            commands::projects::set_environment_provider,
             commands::projects::remove_environment,
             commands::projects::preview_project_metadata,
             commands::projects::write_project_metadata,
@@ -47,6 +60,15 @@ pub fn run() {
             commands::projects::get_settings,
             commands::projects::save_settings,
             commands::projects::open_project_folder,
+            commands::operations::get_host_readiness,
+            commands::operations::refresh_environment_status,
+            commands::operations::validate_environment,
+            commands::operations::get_environment_status,
+            commands::operations::list_environment_statuses,
+            commands::operations::list_operations,
+            commands::operations::get_operation,
+            commands::operations::read_operation_log,
+            commands::operations::cancel_operation,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Vagrant Studio");

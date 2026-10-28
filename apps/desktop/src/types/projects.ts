@@ -48,6 +48,8 @@ export interface Template {
   name: string
   description: string
   machines: string[]
+  /** Provider ids the template can be generated for. */
+  providers: string[]
 }
 
 export interface CreateProjectRequest {
@@ -57,12 +59,16 @@ export interface CreateProjectRequest {
   repositoryUrl: string | null
   tags: string[]
   templateId: string | null
+  /** Required when a template is chosen. */
+  provider: string | null
 }
 
 export interface EnvironmentRequest {
   name: string
   relativePath: string
   environmentType: EnvironmentType | null
+  /** Provider Vagrant should use; null lets Vagrant decide. */
+  defaultProvider: string | null
 }
 
 export interface ImportProjectRequest {
@@ -120,6 +126,10 @@ export interface PortablePreview {
 
 export interface AppSettings {
   defaultProjectLocation: string | null
+  /** Explicit Vagrant executable; null searches PATH and standard install folders. */
+  vagrantPath: string | null
+  /** Provider pre-selected for new projects and environments. */
+  defaultProvider: string | null
 }
 
 /** Error shape returned by every backend command (src-tauri/src/commands/error.rs). */

@@ -1,0 +1,27 @@
+[package]
+name = "vagrant-studio-operation-engine"
+description = "Runs Vagrant operations: records, log files, events, cancellation, recovery"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+regex.workspace = true
+serde_json.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+time.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+vagrant-studio-domain.workspace = true
+vagrant-studio-project-store.workspace = true
+vagrant-studio-vagrant-adapter.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

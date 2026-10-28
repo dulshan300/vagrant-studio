@@ -1,0 +1,27 @@
+[package]
+name = "vagrant-studio-vagrant-adapter"
+description = "Typed Vagrant CLI invocation, process execution and output parsing"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+process-wrap.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+vagrant-studio-platform.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = ["Win32_System_Threading"] }
+
+[lints]
+workspace = true

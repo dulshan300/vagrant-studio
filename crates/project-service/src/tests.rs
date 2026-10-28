@@ -44,6 +44,7 @@ fn create_req(location: String, template: Option<&str>) -> CreateProjectRequest 
         repository_url: Some("https://github.com/o/r.git".into()),
         tags: vec!["Web".into()],
         template_id: template.map(str::to_owned),
+        provider: template.map(|_| "vmware_desktop".to_owned()),
     }
 }
 
@@ -89,10 +90,18 @@ async fn create_with_template_writes_vagrantfile_and_registers_environment() {
     let vagrantfile = fs::read_to_string(folder.join("Vagrantfile")).unwrap();
     assert_eq!(
         vagrantfile,
-        templates::find("web-database").unwrap().vagrantfile
+        templates::find("web-database")
+            .unwrap()
+            .render("vmware_desktop")
+            .unwrap()
     );
+    assert!(vagrantfile.contains("v.vmx[\"memsize\"]"));
     assert_eq!(details.environments.len(), 1);
     assert_eq!(details.environments[0].name, "default");
+    assert_eq!(
+        details.environments[0].default_provider.as_deref(),
+        Some("vmware_desktop")
+    );
     assert_eq!(
         details.environments[0].vagrantfile_path.as_deref(),
         Some("Vagrantfile")
@@ -135,6 +144,23 @@ async fn create_rejects_bad_input_before_touching_disk() {
     assert!(matches!(
         h.service.create(req.clone()).await,
         Err(ServiceError::Validation(_))
+    ));
+    req.template_id = Some("single-linux-vm".into());
+    req.provider = None;
+    assert!(matches!(
+        h.service.create(req.clone()).await,
+        Err(ServiceError::Validation(ValidationError {
+            field: "provider",
+            ..
+        }))
+    ));
+    req.provider = Some("hyperv".into());
+    assert!(matches!(
+        h.service.create(req.clone()).await,
+        Err(ServiceError::Validation(ValidationError {
+            field: "provider",
+            ..
+        }))
     ));
     req.template_id = None;
     req.location = "relative/path".into();
@@ -183,6 +209,7 @@ async fn import_does_not_modify_files() {
                     name: e.name.clone(),
                     relative_path: e.relative_path.clone(),
                     environment_type: None,
+                    default_provider: Some("vmware_desktop".into()),
                 })
                 .collect(),
         })
@@ -190,6 +217,12 @@ async fn import_does_not_modify_files() {
         .unwrap();
 
     assert_eq!(details.environments.len(), 2);
+    assert!(
+        details
+            .environments
+            .iter()
+            .all(|e| e.default_provider.as_deref() == Some("vmware_desktop"))
+    );
     assert_eq!(snapshot(&root), before, "import changed files on disk");
 
     let again = h
@@ -219,6 +252,7 @@ async fn import_rejects_environments_outside_the_project() {
                     name: "e".into(),
                     relative_path: bad.into(),
                     environment_type: None,
+                    default_provider: None,
                 }],
             })
             .await
@@ -384,13 +418,37 @@ async fn update_validates_and_settings_round_trip() {
 
     let settings = AppSettings {
         default_project_location: Some(h.path("")),
+        vagrant_path: None,
+        default_provider: Some("vmware_desktop".into()),
     };
     h.service.save_settings(settings.clone()).await.unwrap();
     assert_eq!(h.service.settings().await.unwrap(), settings);
     assert!(
         h.service
             .save_settings(AppSettings {
-                default_project_location: Some("/definitely/missing".into())
+                default_project_location: Some("/definitely/missing".into()),
+                vagrant_path: None,
+                default_provider: None,
+            })
+            .await
+            .is_err()
+    );
+    assert!(
+        h.service
+            .save_settings(AppSettings {
+                default_project_location: None,
+                vagrant_path: Some(h.path("")),
+                default_provider: None,
+            })
+            .await
+            .is_err(),
+        "a folder is not an executable"
+    );
+    assert!(
+        h.service
+            .save_settings(AppSettings {
+                default_provider: Some("Not A Provider".into()),
+                ..Default::default()
             })
             .await
             .is_err()
@@ -448,12 +506,14 @@ async fn environments_can_be_added_by_absolute_path_inside_the_project_only() {
                 name: "qa".into(),
                 relative_path: root.join("envs/qa").to_str().unwrap().into(),
                 environment_type: Some(EnvironmentType::Testing),
+                default_provider: Some("virtualbox".into()),
             },
         )
         .await
         .unwrap();
     assert_eq!(env.vagrantfile_path.as_deref(), Some("Vagrantfile"));
     assert_eq!(env.environment_type, EnvironmentType::Testing);
+    assert_eq!(env.default_provider.as_deref(), Some("virtualbox"));
 
     let outside = h
         .service
@@ -463,11 +523,25 @@ async fn environments_can_be_added_by_absolute_path_inside_the_project_only() {
                 name: "other".into(),
                 relative_path: h.path(""),
                 environment_type: None,
+                default_provider: None,
             },
         )
         .await
         .unwrap_err();
     assert!(matches!(outside, ServiceError::Validation(_)));
+
+    let switched = h
+        .service
+        .set_environment_provider(env.id, Some("vmware_desktop".into()))
+        .await
+        .unwrap();
+    assert_eq!(switched.default_provider.as_deref(), Some("vmware_desktop"));
+    assert!(
+        h.service
+            .set_environment_provider(env.id, Some("bad name".into()))
+            .await
+            .is_err()
+    );
 
     h.service.remove_environment(env.id).await.unwrap();
     assert!(

@@ -41,7 +41,7 @@ action only when the flag is set **and** detection succeeded on this host.
 | Docker (`docker` provider) | — | Test harness | Test harness | Used for automated lifecycle integration tests on Linux CI; shown to users as a container provider, clearly separated from VMs |
 | libvirt (vagrant-libvirt plugin) | n/a | Candidate | **Preferred Fedora candidate** | Phase 8 |
 | Hyper-V | Candidate | n/a | n/a | Phase 8 (needs admin and conflicts with VirtualBox; see R8) |
-| VMware (vmware_desktop plugin + utility) | Candidate | Candidate | Candidate | Phase 8 or later |
+| **VMware Desktop** (vmware_desktop plugin + Vagrant VMware Utility) | **Windows verification path** (ADR-0003 amendment) | Candidate | Candidate | Detection in Phase 3; lifecycle verification on Windows in Phase 4 |
 
 Compatibility constraint to check at runtime: each Vagrant version supports
 only a range of VirtualBox versions. Detection compares `vagrant --version`
@@ -63,4 +63,5 @@ virtualization or network settings itself.
 
 | Date | Host | Vagrant | Provider | Result |
 |---|---|---|---|---|
-| — | — | — | — | No provider verified yet (Phase 1) |
+| 2026-10-28 | Windows 11 x64 | 2.4.9 | VMware Desktop (Workstation 25.0.0, plugin 3.0.5) | **Read-only only:** version, plugin list, `status` of a multi-machine environment (not created), validate. Readiness detects a stopped VMware Utility. Lifecycle not yet tested (Phase 4). |
+| 2026-10-28 | Windows 11 x64 | 2.4.9 | VirtualBox 7.1.18 | Read-only only: `status` (not created), box list, validate. Lifecycle not tested. |

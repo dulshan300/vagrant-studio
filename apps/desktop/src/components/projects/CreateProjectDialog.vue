@@ -7,7 +7,9 @@ import TextInput from '@/components/ui/form/TextInput.vue'
 import TagInput from '@/components/ui/form/TagInput.vue'
 import FolderInput from '@/components/ui/form/FolderInput.vue'
 import { Button } from '@/components/ui/button'
+import ProviderPicker from '@/components/providers/ProviderPicker.vue'
 import { useFormErrors } from '@/composables/useFormErrors'
+import { useProviderChoices } from '@/composables/useProviderChoices'
 import { settingsApi } from '@/services/projects'
 import { useProjectsStore } from '@/stores/projects'
 
@@ -22,7 +24,18 @@ const location = ref('')
 const repositoryUrl = ref('')
 const tags = ref<string[]>([])
 const templateId = ref<string>('')
+const provider = ref<string | null>(null)
 const busy = ref(false)
+const providers = useProviderChoices()
+
+// Follow the default (settings, then first ready provider) until the user picks one.
+let providerTouched = false
+watch(providers.defaultProvider, (p) => {
+  if (!providerTouched) provider.value = p
+})
+watch(provider, (p) => {
+  if (p !== providers.defaultProvider.value) providerTouched = true
+})
 
 /** Mirrors slugify() in crates/domain so the preview matches the folder created. */
 const folderName = computed(() => {
@@ -43,6 +56,8 @@ watch(open, async (isOpen) => {
   repositoryUrl.value = ''
   tags.value = []
   templateId.value = ''
+  providerTouched = false
+  provider.value = providers.defaultProvider.value
   try {
     await store.loadTemplates()
     location.value ||= (await settingsApi.get()).defaultProjectLocation ?? ''
@@ -61,6 +76,7 @@ async function submit() {
       repositoryUrl: repositoryUrl.value || null,
       tags: tags.value,
       templateId: templateId.value || null,
+      provider: templateId.value ? provider.value : null,
     })
     open.value = false
     await router.push({ name: 'project', params: { id: details.project.id } })
@@ -124,6 +140,23 @@ async function submit() {
         </p>
       </fieldset>
 
+      <fieldset v-if="templateId" class="space-y-2">
+        <legend class="mb-1.5 text-xs font-medium">Provider</legend>
+        <ProviderPicker
+          v-model="provider"
+          name="cp-provider"
+          :choices="providers.choices.value"
+          :checking="providers.checking.value"
+        />
+        <p class="text-xs text-muted">
+          The Vagrantfile is generated for this provider and it becomes the environment's default.
+          Change your preferred default in Settings.
+        </p>
+        <p v-if="errors.field.value.provider" class="text-xs text-status-failed">
+          {{ errors.field.value.provider }}
+        </p>
+      </fieldset>
+
       <FormField label="Description" for="cp-description" :error="errors.field.value.description">
         <TextInput id="cp-description" v-model="description" multiline />
       </FormField>
@@ -154,7 +187,11 @@ async function submit() {
 
     <template #footer>
       <Button variant="secondary" @click="open = false">Cancel</Button>
-      <Button type="submit" form="create-project" :disabled="busy || !name.trim() || !location">
+      <Button
+        type="submit"
+        form="create-project"
+        :disabled="busy || !name.trim() || !location || (!!templateId && !provider)"
+      >
         {{ busy ? 'Creating…' : 'Create project' }}
       </Button>
     </template>

@@ -6,6 +6,9 @@ import PageHeader from '@/components/layout/PageHeader.vue'
 import { Card, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import FolderInput from '@/components/ui/form/FolderInput.vue'
+import TextInput from '@/components/ui/form/TextInput.vue'
+import ProviderSelect from '@/components/providers/ProviderSelect.vue'
+import { useProviderChoices } from '@/composables/useProviderChoices'
 import { useFormErrors } from '@/composables/useFormErrors'
 import { hasBackend } from '@/services/app'
 import { settingsApi } from '@/services/projects'
@@ -18,14 +21,24 @@ const settings = useSettingsStore()
 const app = useAppStore()
 const location = ref('')
 const savedLocation = ref('')
+const vagrantPath = ref('')
+const savedVagrantPath = ref('')
+const defaultProvider = ref<string | null>(null)
+const savedDefaultProvider = ref<string | null>(null)
+const providers = useProviderChoices()
 const locationErrors = useFormErrors()
 
 onMounted(async () => {
   if (!app.loaded) void app.load()
   if (!hasBackend()) return
   try {
-    savedLocation.value = (await settingsApi.get()).defaultProjectLocation ?? ''
+    const settings = await settingsApi.get()
+    savedLocation.value = settings.defaultProjectLocation ?? ''
     location.value = savedLocation.value
+    savedVagrantPath.value = settings.vagrantPath ?? ''
+    vagrantPath.value = savedVagrantPath.value
+    savedDefaultProvider.value = settings.defaultProvider
+    defaultProvider.value = settings.defaultProvider
   } catch (e) {
     locationErrors.set(e)
   }
@@ -34,9 +47,18 @@ onMounted(async () => {
 async function saveLocation() {
   locationErrors.clear()
   try {
-    const saved = await settingsApi.save({ defaultProjectLocation: location.value.trim() || null })
+    const saved = await settingsApi.save({
+      defaultProjectLocation: location.value.trim() || null,
+      vagrantPath: vagrantPath.value.trim() || null,
+      defaultProvider: defaultProvider.value,
+    })
     savedLocation.value = saved.defaultProjectLocation ?? ''
     location.value = savedLocation.value
+    savedVagrantPath.value = saved.vagrantPath ?? ''
+    vagrantPath.value = savedVagrantPath.value
+    savedDefaultProvider.value = saved.defaultProvider
+    defaultProvider.value = saved.defaultProvider
+    providers.preferred.value = saved.defaultProvider
   } catch (e) {
     locationErrors.set(e)
   }
@@ -91,7 +113,54 @@ function onThemeChange(value: unknown) {
         >
         <div class="flex gap-2">
           <div class="flex-1"><FolderInput id="settings-location" v-model="location" /></div>
-          <Button type="submit" :disabled="location === savedLocation">Save</Button>
+        </div>
+        <label for="settings-vagrant" class="mt-4 block text-xs font-medium"
+          >Vagrant executable</label
+        >
+        <TextInput
+          id="settings-vagrant"
+          v-model="vagrantPath"
+          class="font-mono text-xs"
+          placeholder="Leave empty to find Vagrant automatically"
+        />
+        <p
+          v-if="locationErrors.field.value.vagrantPath"
+          class="text-xs text-status-failed"
+          role="alert"
+        >
+          {{ locationErrors.field.value.vagrantPath }}
+        </p>
+        <label for="settings-provider" class="mt-4 block text-xs font-medium"
+          >Default provider</label
+        >
+        <ProviderSelect
+          id="settings-provider"
+          v-model="defaultProvider"
+          :choices="providers.choices.value"
+          allow-unset
+        />
+        <p class="text-xs text-muted">
+          Pre-selected when you create a project or add an environment. Each environment can use a
+          different provider.
+        </p>
+        <p
+          v-if="locationErrors.field.value.provider"
+          class="text-xs text-status-failed"
+          role="alert"
+        >
+          {{ locationErrors.field.value.provider }}
+        </p>
+        <div class="flex justify-end pt-2">
+          <Button
+            type="submit"
+            :disabled="
+              location === savedLocation &&
+              vagrantPath === savedVagrantPath &&
+              defaultProvider === savedDefaultProvider
+            "
+          >
+            Save
+          </Button>
         </div>
         <p
           v-if="locationErrors.field.value.defaultProjectLocation || locationErrors.general.value"

@@ -23,7 +23,7 @@ use vagrant_studio_domain::portable::{
 use vagrant_studio_domain::{
     Environment, EnvironmentId, EnvironmentType, NewEnvironment, NewProject, Project,
     ProjectChanges, ProjectId, ValidationError, normalize_tags, slugify, validate_description,
-    validate_environment_name, validate_name, validate_repository_url,
+    validate_environment_name, validate_name, validate_provider_name, validate_repository_url,
 };
 use vagrant_studio_project_store::{ProjectFilter, ProjectUpdate, Store, StoreError};
 
@@ -87,6 +87,8 @@ pub struct CreateProjectRequest {
     #[serde(default)]
     pub tags: Vec<String>,
     pub template_id: Option<String>,
+    /// Vagrant provider the template is rendered for (required with a template).
+    pub provider: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -111,6 +113,9 @@ pub struct EnvironmentRequest {
     /// absolute path inside it (as returned by a folder picker).
     pub relative_path: String,
     pub environment_type: Option<EnvironmentType>,
+    /// Provider Vagrant should use for this environment's machines.
+    #[serde(default)]
+    pub default_provider: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -149,6 +154,12 @@ pub struct PortablePreview {
 pub struct AppSettings {
     /// Folder pre-selected when creating projects.
     pub default_project_location: Option<String>,
+    /// Explicit Vagrant executable; when unset Vagrant is searched for.
+    #[serde(default)]
+    pub vagrant_path: Option<String>,
+    /// Provider pre-selected for new projects and environments.
+    #[serde(default)]
+    pub default_provider: Option<String>,
 }
 
 const SETTINGS_KEY: &str = "app";
@@ -178,8 +189,8 @@ impl ProjectService {
         }
     }
 
-    pub fn templates(&self) -> &'static [Template] {
-        templates::TEMPLATES
+    pub fn templates(&self) -> Vec<Template> {
+        templates::all()
     }
 
     pub async fn list(&self, filter: ProjectFilter) -> Result<Vec<Project>> {
@@ -209,10 +220,20 @@ impl ProjectService {
             root_path: String::new(),
             name,
         };
-        let template = match req.template_id.as_deref().filter(|t| !t.is_empty()) {
-            Some(id) => Some(templates::find(id).ok_or_else(|| {
-                ValidationError::new("templateId", format!("Unknown template \"{id}\"."))
-            })?),
+        let provider = validate_provider_name(req.provider.as_deref())?;
+        let rendered = match req.template_id.as_deref().filter(|t| !t.is_empty()) {
+            Some(id) => {
+                let template = templates::find(id).ok_or_else(|| {
+                    ValidationError::new("templateId", format!("Unknown template \"{id}\"."))
+                })?;
+                let provider = provider.clone().ok_or_else(|| {
+                    ValidationError::new("provider", "Choose a provider for the template.")
+                })?;
+                let content = template
+                    .render(&provider)
+                    .map_err(|e| ValidationError::new("provider", e.to_string()))?;
+                Some((content, provider))
+            }
             None => None,
         };
 
@@ -243,9 +264,9 @@ impl ProjectService {
         }
 
         let result = async {
-            if let Some(template) = template {
+            if let Some((content, _)) = &rendered {
                 let path = folder.join("Vagrantfile");
-                write_new_file(&path, template.vagrantfile)?;
+                write_new_file(&path, content)?;
                 undo.created_file = Some(path);
             }
             let project = self
@@ -255,7 +276,7 @@ impl ProjectService {
                     ..new
                 })
                 .await?;
-            if template.is_some() {
+            if let Some((_, provider)) = &rendered {
                 self.store
                     .insert_environment(
                         project.id,
@@ -263,7 +284,7 @@ impl ProjectService {
                             name: "default".into(),
                             root_path: folder_str.clone(),
                             vagrantfile_path: Some("Vagrantfile".into()),
-                            default_provider: Some("virtualbox".into()),
+                            default_provider: Some(provider.clone()),
                             environment_type: EnvironmentType::Development,
                         },
                     )
@@ -336,6 +357,24 @@ impl ProjectService {
         let root = canonical_dir(&project.root_path, "rootPath")?;
         let env = resolve_environment(&root, &req)?;
         Ok(self.store.insert_environment(project_id, &env).await?)
+    }
+
+    /// Sets (or clears) the provider used for an environment's machines.
+    /// Existing machines keep the provider they were created with; Vagrant
+    /// reports those regardless of this setting.
+    pub async fn set_environment_provider(
+        &self,
+        id: EnvironmentId,
+        provider: Option<String>,
+    ) -> Result<Environment> {
+        let provider = validate_provider_name(provider.as_deref())?;
+        if self.store.get_environment(id).await?.is_none() {
+            return Err(ServiceError::NotFound("Environment not found.".into()));
+        }
+        Ok(self
+            .store
+            .set_environment_provider(id, provider.as_deref())
+            .await?)
     }
 
     /// Removes environment metadata only; files and machines are untouched.
@@ -469,13 +508,34 @@ impl ProjectService {
             .unwrap_or_default())
     }
 
-    pub async fn save_settings(&self, settings: AppSettings) -> Result<AppSettings> {
+    pub async fn save_settings(&self, mut settings: AppSettings) -> Result<AppSettings> {
+        settings.default_provider = validate_provider_name(settings.default_provider.as_deref())?;
         if let Some(loc) = &settings.default_project_location {
             canonical_dir(loc, "defaultProjectLocation")?;
+        }
+        if let Some(path) = settings.vagrant_path.as_deref().map(str::trim) {
+            let p = Path::new(path);
+            if !p.is_absolute() || !p.is_file() {
+                return Err(ValidationError::new(
+                    "vagrantPath",
+                    "Choose the Vagrant executable (an existing file), or leave empty to search automatically.",
+                )
+                .into());
+            }
         }
         let json = serde_json::to_string(&settings).expect("settings serialize");
         self.store.set_setting(SETTINGS_KEY, &json).await?;
         Ok(settings)
+    }
+
+    /// An environment together with its project.
+    pub async fn environment(&self, id: EnvironmentId) -> Result<(Project, Environment)> {
+        let env = self
+            .store
+            .get_environment(id)
+            .await?
+            .ok_or_else(|| ServiceError::NotFound("Environment not found.".into()))?;
+        Ok((self.require(env.project_id).await?, env))
     }
 
     async fn require(&self, id: ProjectId) -> Result<Project> {
@@ -536,7 +596,7 @@ fn resolve_environment(root: &Path, req: &EnvironmentRequest) -> Result<NewEnvir
     Ok(NewEnvironment {
         vagrantfile_path: inspect::vagrantfile_in(&dir),
         root_path: path_string(&dir)?,
-        default_provider: None,
+        default_provider: validate_provider_name(req.default_provider.as_deref())?,
         environment_type: req.environment_type.unwrap_or(EnvironmentType::Development),
         name,
     })

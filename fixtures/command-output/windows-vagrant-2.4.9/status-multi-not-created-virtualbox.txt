@@ -1,0 +1,11 @@
+1793205205,web,metadata,provider,virtualbox
+1793205205,db,metadata,provider,virtualbox
+1793205206,web,provider-name,virtualbox
+1793205206,web,state,not_created
+1793205206,web,state-human-short,not created
+1793205206,web,state-human-long,The environment has not yet been created. Run `vagrant up` to\ncreate the environment. If a machine is not created%!(VAGRANT_COMMA) only the\ndefault provider will be shown. So if a provider is not listed%!(VAGRANT_COMMA)\nthen the machine is not created for that environment.
+1793205206,db,provider-name,virtualbox
+1793205206,db,state,not_created
+1793205206,db,state-human-short,not created
+1793205206,db,state-human-long,The environment has not yet been created. Run `vagrant up` to\ncreate the environment. If a machine is not created%!(VAGRANT_COMMA) only the\ndefault provider will be shown. So if a provider is not listed%!(VAGRANT_COMMA)\nthen the machine is not created for that environment.
+1793205206,,ui,info,Current machine states:\n\nweb                       not created (virtualbox)\ndb                        not created (virtualbox)\n\nThis environment represents multiple VMs. The VMs are all listed\nabove with their current state. For more information about a specific\nVM%!(VAGRANT_COMMA) run `vagrant status NAME`.

@@ -124,6 +124,25 @@ pub fn validate_repository_url(url: Option<&str>) -> Result<Option<String>, Vali
     }
 }
 
+/// Vagrant provider names such as `virtualbox`, `vmware_desktop`, `libvirt`.
+pub fn validate_provider_name(provider: Option<&str>) -> Result<Option<String>, ValidationError> {
+    let Some(p) = provider.map(str::trim).filter(|p| !p.is_empty()) else {
+        return Ok(None);
+    };
+    if p.len() > 40
+        || !p.starts_with(|c: char| c.is_ascii_lowercase())
+        || !p
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_' || c == '-')
+    {
+        return Err(ValidationError::new(
+            "provider",
+            format!("\"{p}\" is not a valid Vagrant provider name."),
+        ));
+    }
+    Ok(Some(p.to_owned()))
+}
+
 /// Tags are case-insensitive; they are stored lowercased.
 pub fn validate_tag(tag: &str) -> Result<String, ValidationError> {
     let tag = tag.trim().to_lowercase();
@@ -235,6 +254,20 @@ mod tests {
         assert!(normalize_tags(&[""]).is_err());
         let many: Vec<String> = (0..21).map(|i| format!("t{i}")).collect();
         assert!(normalize_tags(&many).is_err());
+    }
+
+    #[test]
+    fn provider_names() {
+        assert_eq!(
+            validate_provider_name(Some(" vmware_desktop "))
+                .unwrap()
+                .as_deref(),
+            Some("vmware_desktop")
+        );
+        assert_eq!(validate_provider_name(Some("")).unwrap(), None);
+        for bad in ["VirtualBox", "--provider", "a b", "1x", "x;y"] {
+            assert!(validate_provider_name(Some(bad)).is_err(), "{bad}");
+        }
     }
 
     #[test]

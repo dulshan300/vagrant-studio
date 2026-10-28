@@ -15,6 +15,7 @@ import {
 import PageHeader from '@/components/layout/PageHeader.vue'
 import EmptyState from '@/components/layout/EmptyState.vue'
 import AddEnvironmentDialog from '@/components/projects/AddEnvironmentDialog.vue'
+import EnvironmentPanel from '@/components/projects/EnvironmentPanel.vue'
 import DeleteProjectDialog from '@/components/projects/DeleteProjectDialog.vue'
 import PortableMetadataDialog from '@/components/projects/PortableMetadataDialog.vue'
 import FormField from '@/components/ui/form/FormField.vue'
@@ -177,37 +178,13 @@ async function removeEnvironment(id: string, name: string) {
           </template>
         </CardHeader>
         <ul v-if="details.environments.length" class="divide-y">
-          <li v-for="env in details.environments" :key="env.id" class="px-5 py-3">
-            <div class="flex items-center justify-between gap-3">
-              <span class="font-medium">{{ env.name }}</span>
-              <span class="flex items-center gap-2">
-                <span class="rounded bg-surface-muted px-1.5 py-0.5 text-[11px] capitalize">{{
-                  env.environmentType
-                }}</span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="size-7 text-muted"
-                  :aria-label="`Remove environment ${env.name}`"
-                  @click="removeEnvironment(env.id, env.name)"
-                >
-                  <Trash2 />
-                </Button>
-              </span>
-            </div>
-            <code
-              class="mt-0.5 block truncate font-mono text-xs text-muted"
-              :title="env.rootPath"
-              >{{ env.rootPath }}</code
-            >
-            <p class="mt-0.5 text-xs text-muted">
-              {{
-                env.vagrantfilePath
-                  ? `Vagrantfile: ${env.vagrantfilePath}`
-                  : 'No Vagrantfile detected'
-              }}
-            </p>
-          </li>
+          <EnvironmentPanel
+            v-for="env in details.environments"
+            :key="env.id"
+            :environment="env"
+            @remove="removeEnvironment(env.id, env.name)"
+            @updated="load(project.id)"
+          />
         </ul>
         <EmptyState
           v-else

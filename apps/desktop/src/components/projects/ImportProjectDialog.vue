@@ -8,7 +8,9 @@ import TextInput from '@/components/ui/form/TextInput.vue'
 import TagInput from '@/components/ui/form/TagInput.vue'
 import FolderInput from '@/components/ui/form/FolderInput.vue'
 import { Button } from '@/components/ui/button'
+import ProviderSelect from '@/components/providers/ProviderSelect.vue'
 import { useFormErrors } from '@/composables/useFormErrors'
+import { useProviderChoices } from '@/composables/useProviderChoices'
 import { projectsApi } from '@/services/projects'
 import { useProjectsStore } from '@/stores/projects'
 import type { DetectedEnvironment, FolderInspection } from '@/types/projects'
@@ -26,13 +28,16 @@ const description = ref('')
 const repositoryUrl = ref('')
 const tags = ref<string[]>([])
 const selected = ref<DetectedEnvironment[]>([])
+const provider = ref<string | null>(null)
 const busy = ref(false)
+const providers = useProviderChoices()
 
 watch(open, (isOpen) => {
   if (!isOpen) return
   errors.clear()
   folder.value = ''
   inspection.value = null
+  provider.value = providers.defaultProvider.value
 })
 
 async function inspect() {
@@ -69,6 +74,7 @@ async function submit() {
         name: e.name,
         relativePath: e.relativePath,
         environmentType: null,
+        defaultProvider: provider.value,
       })),
     })
     open.value = false
@@ -180,6 +186,18 @@ function openExisting() {
                 </label>
               </li>
             </ul>
+            <div
+              v-if="inspection.environments.length"
+              class="mt-3 flex flex-wrap items-center gap-2 text-xs"
+            >
+              <label for="ip-provider" class="font-medium">Provider for these environments</label>
+              <ProviderSelect
+                id="ip-provider"
+                v-model="provider"
+                :choices="providers.choices.value"
+                allow-unset
+              />
+            </div>
             <p v-if="inspection.scanTruncated" class="mt-1.5 text-xs text-muted">
               The folder is large, so only part of it was scanned.
             </p>

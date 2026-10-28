@@ -5,6 +5,7 @@
 //! exercised for real (see ADR-0007).
 
 mod environments;
+mod operations;
 mod projects;
 mod settings;
 
@@ -16,6 +17,7 @@ use sqlx::SqlitePool;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use time::OffsetDateTime;
 
+pub use operations::EnvironmentStatusRecord;
 pub use projects::{ProjectFilter, ProjectUpdate};
 
 static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("../../migrations");
@@ -83,7 +85,7 @@ impl Store {
 
 /// Current UTC time truncated to milliseconds so stored values have a
 /// consistent precision.
-pub(crate) fn now() -> OffsetDateTime {
+pub fn now() -> OffsetDateTime {
     let now = OffsetDateTime::now_utc();
     now.replace_nanosecond(now.millisecond() as u32 * 1_000_000)
         .unwrap_or(now)
@@ -120,6 +122,7 @@ mod tests {
             tables,
             [
                 "app_settings",
+                "environment_status",
                 "environments",
                 "machine_configs",
                 "operations",
@@ -133,7 +136,7 @@ mod tests {
                 "tags",
             ]
         );
-        assert_eq!(Store::schema_version(), 1);
+        assert_eq!(Store::schema_version(), 2);
     }
 
     #[tokio::test]
@@ -148,6 +151,59 @@ mod tests {
         assert!(err.to_string().contains("FOREIGN KEY"), "{err}");
     }
 
+    /// A database created by the v1 schema keeps its operation rows when
+    /// upgraded to the current schema.
+    #[tokio::test]
+    async fn upgrade_from_v1_preserves_operations() {
+        let dir = tempfile::tempdir().unwrap();
+        let v1 = dir.path().join("migrations-v1");
+        std::fs::create_dir(&v1).unwrap();
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../migrations");
+        std::fs::copy(root.join("0001_initial.sql"), v1.join("0001_initial.sql")).unwrap();
+
+        let db = dir.path().join("old.db");
+        let options = SqliteConnectOptions::new()
+            .filename(&db)
+            .create_if_missing(true)
+            .foreign_keys(true);
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(options)
+            .await
+            .unwrap();
+        sqlx::migrate::Migrator::new(v1.as_path())
+            .await
+            .unwrap()
+            .run(&pool)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO projects (id, name, slug, root_path, created_at, updated_at) VALUES ('p', 'P', 'p', '/p', 't', 't')")
+            .execute(&pool).await.unwrap();
+        sqlx::query("INSERT INTO environments (id, project_id, name, root_path, created_at, updated_at) VALUES ('e', 'p', 'dev', '/p', 't', 't')")
+            .execute(&pool).await.unwrap();
+        sqlx::query("INSERT INTO operations (id, environment_id, operation_type, status, exit_code, created_at) VALUES ('o', 'e', 'up', 'failed', 1, '2026-01-01T00:00:00Z')")
+            .execute(&pool).await.unwrap();
+        pool.close().await;
+
+        let store = Store::open(&db).await.unwrap();
+        let row: (String, Option<String>, String, Option<i64>, String) = sqlx::query_as(
+            "SELECT id, environment_id, status, exit_code, target_label FROM operations",
+        )
+        .fetch_one(&store.pool)
+        .await
+        .unwrap();
+        assert_eq!(
+            row,
+            (
+                "o".into(),
+                Some("e".into()),
+                "failed".into(),
+                Some(1),
+                String::new()
+            )
+        );
+    }
+
     #[tokio::test]
     async fn reopening_a_file_database_is_idempotent() {
         let dir = tempfile::tempdir().unwrap();
@@ -160,6 +216,6 @@ mod tests {
             .fetch_one(&store.pool)
             .await
             .unwrap();
-        assert_eq!(applied.0, 1);
+        assert_eq!(applied.0, 2);
     }
 }

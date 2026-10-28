@@ -135,6 +135,15 @@ pub async fn add_environment(
 }
 
 #[tauri::command]
+pub async fn set_environment_provider(
+    service: Service<'_>,
+    id: EnvironmentId,
+    provider: Option<String>,
+) -> CommandResult<Environment> {
+    Ok(service.set_environment_provider(id, provider).await?)
+}
+
+#[tauri::command]
 pub async fn remove_environment(service: Service<'_>, id: EnvironmentId) -> CommandResult<()> {
     Ok(service.remove_environment(id).await?)
 }
@@ -158,7 +167,7 @@ pub async fn write_project_metadata(
 
 #[tauri::command]
 pub fn list_templates(service: Service<'_>) -> Vec<Template> {
-    service.templates().to_vec()
+    service.templates()
 }
 
 #[tauri::command]

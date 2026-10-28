@@ -43,12 +43,15 @@ Acceptance: app launches on target OSes; UI navigable; CI runs tests; no new war
 - [ ] Notes and tasks UI (tables exist; UI scheduled with the developer workspace in Phase 7)
 
 ## Phase 3 — Vagrant CLI integration
-- [ ] `crates/vagrant-adapter`: discovery (via `platform`), `--version`, typed `VagrantCommand` → argv, tokio process runner with streaming, timeouts, cancellation, process-tree kill
-- [ ] `--machine-readable` parsers for status, box list, plugin list; fixtures under `fixtures/command-output/`
-- [ ] `crates/operation-engine`: operation rows, log files, redaction, `EventSink`, crash recovery (`running` → `interrupted`)
-- [ ] Host readiness: Vagrant missing/version/plugins
-- [ ] Operations center page and live output drawer
-- [ ] Tests: fake executor, fixture parsers, real `vagrant --version` (opt-in)
+- [x] `crates/vagrant-adapter`: discovery (setting override → PATH → install locations), `--version`, typed `VagrantCommand` → argv, `ProcessRunner` (process-wrap; Job Object on Windows, process group on Linux; streaming; timeout; cancel; no console windows)
+- [x] `--machine-readable` parsers for status, box list, plugin list, error-exit; fixtures captured from Windows Vagrant 2.4.9 (`fixtures/command-output/`)
+- [x] `crates/operation-engine`: operation rows + log files, redaction, `EventSink` events, cancellation, crash recovery (`interrupted`), environment status snapshots
+- [x] Migration 0002: history independent of environments, host-level operations, status cache; v1→v2 upgrade test
+- [x] Host readiness: Vagrant missing/version, plugins, VirtualBox and VMware Desktop prerequisites (utility reachability); Providers page
+- [x] Operations page, live output drawer with cancel; environment panel (Refresh status, Validate, machines); dashboard recent operations and machine counts; Virtual Machines page
+- [x] Tests: fake runner, fixture parsers, real processes (cancel/timeout/argv), opt-in real Vagrant (`--ignored`), all also run as Windows binaries
+- [x] Provider choice (user request): templates are provider-neutral (`Vagrantfile.tmpl`) and rendered for VirtualBox or VMware Desktop; New project picks from detected providers; app-wide default provider in Settings; per-environment provider editable; Add environment / Import set it too. All 3 templates × 2 providers pass `vagrant validate` (Windows Vagrant 2.4.9); `bento/ubuntu-24.04` is published for both providers.
+- [ ] Manual check on Windows: user walkthrough
 
 ## Phase 4 — Multi-machine lifecycle
 - [ ] Machine discovery from `vagrant status --machine-readable` per environment

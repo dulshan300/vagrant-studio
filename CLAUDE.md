@@ -22,6 +22,8 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 cargo test -p vagrant-studio-platform finds_first_match   # single crate / single test
 cargo test -p vagrant-studio-platform --target x86_64-pc-windows-gnu   # run tests as a Windows .exe via WSL interop
+VAGRANT_STUDIO_TEST_PROVIDER=vmware_desktop WSLENV=VAGRANT_STUDIO_TEST_PROVIDER \
+  cargo test -p vagrant-studio-vagrant-adapter --target x86_64-pc-windows-gnu -- --include-ignored   # real Windows Vagrant
 pnpm build:win-local   # Windows .exe from WSL → target/x86_64-pc-windows-gnu/release/vagrant-studio.exe (runs via interop)
 ```
 
@@ -33,7 +35,8 @@ The `vagrant-studio` crate (apps/desktop/src-tauri) needs WebKitGTK 4.1 dev pack
 
 ## Architecture (see docs/architecture.md)
 
-- **Modular monolith.** The Cargo workspace root is the repo root; members are `apps/desktop/src-tauri` and `crates/*`. The app crate holds only Tauri commands (`src-tauri/src/commands/`, errors mapped to `CommandError { kind, message, field, existing }`), wiring and the event bridge. Current crates: `platform` (host/WSL detection, executable discovery), `domain` (types, validation, portable format; no I/O), `project-store` (SQLite via SQLx, the `Store` type), `project-service` (`ProjectService`, the only code that writes to project folders). Future crates (`vagrant-adapter`, `operation-engine`, `provider-registry`, `config-model`) are created only when their phase starts.
+- **Modular monolith.** The Cargo workspace root is the repo root; members are `apps/desktop/src-tauri` and `crates/*`. The app crate holds only Tauri commands (`src-tauri/src/commands/`, errors mapped to `CommandError { kind, message, field, existing }`), wiring and the event bridge. Current crates: `platform` (host/WSL detection, executable discovery), `domain` (types, validation, portable format; no I/O), `project-store` (SQLite via SQLx, the `Store` type), `project-service` (`ProjectService`, the only code that writes to project folders), `vagrant-adapter` (`Runner`/`ProcessRunner`, `VagrantCommand`, machine-readable parsers, readiness checks), `operation-engine` (`OperationEngine`: operation records, redacted logs, events, cancellation). Future crates (`provider-registry`, `config-model`) are created only when their phase starts.
+- **Running Vagrant:** always through `OperationEngine` (user-visible commands) or the adapter's `Runner` (readiness probes); never `std::process::Command` directly. Don't combine `--no-tty` with `--machine-readable`; the last flag wins and you get human text (ADR-0008). Events go to the WebView on `vagrant-studio://operation`. Test parsers against `fixtures/command-output/` (CRLF preserved; never normalize them).
 - **Persistence:** migrations live in `/migrations` (embedded with `sqlx::migrate!`; never edit an applied migration, add a new one). SQLx 0.9 accepts only `&'static str` SQL; build variants with `concat!` macros, bind all values, and don't use `AssertSqlSafe`. Timestamps are RFC 3339 UTC with variable fraction digits, so compare parsed values, never strings (Rust or TS). Tests use `Store::open_in_memory()`, not mocks (ADR-0007).
 - **Vagrant is the lifecycle authority.** Only invoke the host's `vagrant` CLI, with an argv vector (never a shell string) and an explicit working directory set to the environment root. Machine state shown in the UI comes from `vagrant status`, never from the DB or guesses. Don't invent metrics; show "unknown/unavailable".
 - **Host Vagrant only** (ADR-0002): never bundle or install Vagrant, providers or plugins, and never change host virtualization or network settings.
@@ -48,6 +51,7 @@ The `vagrant-studio` crate (apps/desktop/src-tauri) needs WebKitGTK 4.1 dev pack
 - Paths: canonicalize with `dunce`, reject non-UTF-8, and check environment folders stay inside the project root. Windows filesystems are case-insensitive and `DirEntry::metadata()` is stale on Windows; use `fs::metadata(path)` when accuracy matters.
 - Tauri npm packages and Rust crates must match on major.minor (`tauri build` fails otherwise); `rust-version` in `Cargo.toml` limits which crate versions Cargo picks (ADR-0006).
 - Don't claim a provider or platform works until it has been tested natively; record results in `docs/provider-capabilities.md` and `docs/implementation-status.md`. VirtualBox is the first provider path (ADR-0003).
+- Templates live in `templates/*/Vagrantfile.tmpl` with `{{provider_name}}` and `{{provider target=… cpus=… memory=…}}` placeholders, rendered per provider in `crates/project-service/src/templates.rs`. After changing one, render all of them (`VAGRANT_STUDIO_RENDER_DIR=… cargo test -p vagrant-studio-project-service -- --ignored render_all`) and run `vagrant validate` on each with Windows Vagrant.
 - TypeScript is held at 6.0.x because typescript-eslint requires `<6.1` (ADR-0006).
-- Tests needing a real VM must be opt-in (`#[ignore]` plus an env var), separate from tests that run anywhere.
+- Tests needing real Vagrant or a VM must be opt-in (`#[ignore]`), separate from tests that run anywhere. Shell scripts here run in zsh: unquoted `$var` is not word-split (use `${=var}`).
 - Commit at verified milestones; end commit messages with the attribution trailer the session specifies.

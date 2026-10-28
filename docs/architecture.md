@@ -45,16 +45,16 @@ Vagrant owns.
 | `platform` | `PlatformAdapter`: OS/arch detection, WSL detection, executable discovery (`PATH`, `PATHEXT`, well-known install dirs), path normalization, opening folders and terminals | std | depend on Tauri or the DB |
 | `project-store` | Project, environment, tag and settings persistence (`Store`); later operations; SQLx migrations in `/migrations` | domain, sqlx | hold machine runtime state as truth |
 | `project-service` | `ProjectService`: create (templates), inspect, import, update, archive, delete (metadata, or folder → OS trash), portable `project.json` | domain, project-store | write to project folders except through its documented safe paths (ADR-0007) |
-| `vagrant-adapter` | `VagrantExecutor` trait and process implementation, typed `VagrantCommand` → argv builder, output parsers (`--machine-readable`), fixture tests | domain, platform, tokio | build shell strings |
-| `operation-engine` | `OperationScheduler`: queue, per-environment mutual exclusion, cancellation, log files, event emission through an `EventSink` trait | domain, vagrant-adapter, project-store | depend on Tauri directly |
+| `vagrant-adapter` | `Runner` trait + `ProcessRunner` (process-wrap: Job Object / process group, streaming, timeout, cancel), typed `VagrantCommand` → argv, `--machine-readable` parsers (fixture-tested), Vagrant discovery/version, host readiness checks | platform, tokio, process-wrap | build shell strings |
+| `operation-engine` | `OperationEngine`: operation records, redacted log files, `EventSink` events, cancellation, crash recovery, status snapshots (Phase 3); per-environment scheduling and conflicts (Phase 4) | domain, vagrant-adapter, project-store | depend on Tauri directly |
 | `provider-registry` | `ProviderAdapter` trait, capability flags, prerequisite checks | domain, platform, vagrant-adapter | promise capabilities that detection didn't confirm |
 | `config-model` | Supported-subset Vagrantfile model, generator, "can this be edited visually" analysis, backups and diffs | domain | rewrite user Ruby it doesn't understand |
 | `src-tauri` (app) | Tauri commands, event bridge (`EventSink` impl), state wiring, tracing setup, capabilities | all crates | contain business logic |
 
 Crates are created **when the phase that needs them starts** (see the
 roadmap), so the workspace never holds empty scaffolding. Present so far:
-`platform` (Phase 1), plus `domain`, `project-store` and `project-service`
-(Phase 2).
+`platform` (Phase 1); `domain`, `project-store` and `project-service`
+(Phase 2); `vagrant-adapter` and `operation-engine` (Phase 3).
 
 Every trait that touches the outside world (`VagrantExecutor`,
 `PlatformAdapter`, `EventSink`) has a fake implementation for tests.
@@ -63,6 +63,8 @@ actions go through injectable functions (ADR-0007). Business logic is tested wit
 Vagrant, VM or WebView.
 
 ## 3. Process execution model
+
+(Details and verified CLI behaviour: ADR-0008.)
 
 - Commands are built as typed values (`VagrantCommand::Up { machine:
   Option<MachineName>, provision: bool }`) and turned into an **argument

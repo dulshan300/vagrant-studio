@@ -100,6 +100,23 @@ impl Store {
         rows.into_iter().map(Environment::try_from).collect()
     }
 
+    /// Changes the provider Vagrant should use for this environment's machines.
+    pub async fn set_environment_provider(
+        &self,
+        id: EnvironmentId,
+        provider: Option<&str>,
+    ) -> Result<Environment> {
+        sqlx::query("UPDATE environments SET default_provider = ?, updated_at = ? WHERE id = ?")
+            .bind(provider)
+            .bind(now())
+            .bind(id.to_string())
+            .execute(&self.pool)
+            .await?;
+        self.get_environment(id)
+            .await?
+            .ok_or_else(|| StoreError::Conflict("Environment no longer exists.".into()))
+    }
+
     /// Removes the environment's metadata only. Returns false if it did not exist.
     pub async fn delete_environment(&self, id: EnvironmentId) -> Result<bool> {
         let result = sqlx::query("DELETE FROM environments WHERE id = ?")
@@ -163,6 +180,15 @@ mod tests {
             .await
             .unwrap_err();
         assert!(matches!(dup, StoreError::Conflict(_)));
+
+        let changed = s
+            .set_environment_provider(test.id, Some("vmware_desktop"))
+            .await
+            .unwrap();
+        assert_eq!(changed.default_provider.as_deref(), Some("vmware_desktop"));
+        let cleared = s.set_environment_provider(test.id, None).await.unwrap();
+        assert_eq!(cleared.default_provider, None);
+        let test = cleared;
 
         assert!(s.delete_environment(dev.id).await.unwrap());
         assert_eq!(s.list_environments(pid).await.unwrap(), vec![test]);
