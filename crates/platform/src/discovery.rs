@@ -98,11 +98,19 @@ fn candidates(dir: &Path, name: &str, extensions: &[String]) -> Vec<PathBuf> {
 
 /// `/mnt/<drive letter>` and anything below it.
 fn is_windows_mount(dir: &Path) -> bool {
-    let mut parts = dir.components().map(|c| c.as_os_str().to_string_lossy());
-    matches!(
-        (parts.next().as_deref(), parts.next().as_deref(), parts.next()),
-        (Some("/"), Some("mnt"), Some(drive)) if drive.len() == 1 && drive.chars().all(|c| c.is_ascii_alphabetic())
-    )
+    use std::path::Component;
+    let mut parts = dir.components();
+    match (parts.next(), parts.next(), parts.next()) {
+        (
+            Some(Component::RootDir),
+            Some(Component::Normal(mnt)),
+            Some(Component::Normal(drive)),
+        ) => {
+            let drive = drive.to_string_lossy();
+            mnt == "mnt" && drive.len() == 1 && drive.chars().all(|c| c.is_ascii_alphabetic())
+        }
+        _ => false,
+    }
 }
 
 #[cfg(unix)]
@@ -218,11 +226,9 @@ mod tests {
 
     #[test]
     fn wsl_search_skips_windows_mounts_and_keeps_linux_dirs() {
-        let s = ExecutableSearch::from_values(
-            &linux(true),
-            Some("/mnt/c/Program Files/Vagrant/bin:/usr/bin".into()),
-            None,
-        );
+        // PATH uses the separator of the OS running the tests (`;` on Windows).
+        let path = std::env::join_paths(["/mnt/c/Program Files/Vagrant/bin", "/usr/bin"]).unwrap();
+        let s = ExecutableSearch::from_values(&linux(true), Some(path), None);
         assert!(s.skip_windows_mounts);
         assert!(s.extensions.is_empty());
         assert_eq!(s.dirs[0], PathBuf::from("/mnt/c/Program Files/Vagrant/bin"));
