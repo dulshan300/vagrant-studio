@@ -53,14 +53,14 @@ Acceptance: app launches on target OSes; UI navigable; CI runs tests; no new war
 - [x] Provider choice (user request): templates are provider-neutral (`Vagrantfile.tmpl`) and rendered for VirtualBox or VMware Desktop; New project picks from detected providers; app-wide default provider in Settings; per-environment provider editable; Add environment / Import set it too. All 3 templates × 2 providers pass `vagrant validate` (Windows Vagrant 2.4.9); `bento/ubuntu-24.04` is published for both providers.
 - [x] Manual check on Windows: user walkthrough
 
-## Phase 4 — Multi-machine lifecycle (implemented; awaiting Windows walkthrough)
+## Phase 4 — Multi-machine lifecycle (complete 2026-10-28, Windows / VMware Desktop)
 - [x] Machine discovery from `vagrant status --machine-readable` per environment (Phase 3 snapshot; lifecycle targets are checked against it)
 - [x] Per-machine and bulk up/halt/reload/suspend/resume/provision/destroy: machines always named explicitly, in Vagrantfile order (bare `up` skips `autostart: false`); `up` without `--provider`
 - [x] Scheduler: per-environment read/write lock, global box lock (read by `up`/`box list`; writers arrive in Phase 6), FIFO queueing, conflict errors for duplicate requests, cancel while queued
 - [x] Typed confirmation dialog plus one-time backend confirmation tokens bound to the exact target for `destroy`
 - [x] Status refresh after every mutating operation (inside the same operation and lock), expected-state warnings; cancellation and termination recorded, then state re-read
 - [x] Integration test with the docker provider (Linux, opt-in, passing) and manual test plan (`docs/testing/manual-lifecycle.md`)
-- [ ] Manual lifecycle test on Windows with VMware Desktop and VirtualBox (user walkthrough)
+- [x] Manual lifecycle use on Windows with VMware Desktop (accepted by the user); VirtualBox lifecycle not yet reported
 
 ## Phase 5 — Vagrantfile editor
 - [ ] Raw editor (CodeMirror 6, Ruby highlighting, search/replace)

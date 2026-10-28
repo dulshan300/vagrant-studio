@@ -3,9 +3,8 @@
 _Last updated: 2026-10-28_
 
 ## Current phase
-**Phase 4 — Multi-machine lifecycle: implemented, automated tests pass; awaiting the
-manual lifecycle walkthrough on Windows** (`docs/testing/manual-lifecycle.md`, VMware
-Desktop then VirtualBox). Phase 4 is complete only after that walkthrough.
+**Phase 4 — Multi-machine lifecycle: complete (Windows, VMware Desktop), marked done by
+the user 2026-10-28.** Next: Phase 5, Vagrantfile editor.
 
 ## Completed phases
 - **Phase 0 — Inspection and planning** (2026-10-28): architecture, roadmap,
@@ -20,6 +19,12 @@ Desktop then VirtualBox). Phase 4 is complete only after that walkthrough.
   engine, readiness checks, Operations/Providers/Machines pages, provider selection
   (VirtualBox, VMware Desktop). Tests pass on Linux and as Windows binaries, including
   opt-in real Vagrant 2.4.9 + VMware Desktop. User walkthrough on Windows passed.
+- **Phase 4 — Multi-machine lifecycle** (2026-10-28, Windows): scheduler (per-environment
+  lock, box lock, queueing, conflicts), explicit machine targeting, follow-up status with
+  expected-state warnings, destroy confirmation tokens, machine actions UI. Automated tests
+  and the opt-in docker lifecycle test pass. Real lifecycle used by the user with VMware
+  Desktop on Windows; the user marked the phase done without itemized step results.
+  VirtualBox lifecycle not reported.
 
 ## Phase 4 results (2026-10-28)
 | Check | Result |
@@ -29,7 +34,8 @@ Desktop then VirtualBox). Phase 4 is complete only after that walkthrough.
 | Opt-in docker lifecycle test (Linux Vagrant 2.4.9 + Docker 29.7.2, WSL2) | **Pass** (71 s): status, `up` of named machines incl. `autostart: false`, halt, reload, suspend refused by provider, confirmed destroy; no containers left |
 | clippy `-D warnings` / rustfmt | Pass |
 | Frontend lint, format, typecheck, tests | Pass, 37 tests |
-| Manual lifecycle on Windows (VMware Desktop, VirtualBox) | **Not yet run**: needs the user (plan in `docs/testing/manual-lifecycle.md`) |
+| Manual lifecycle on Windows, VMware Desktop | **Accepted by the user** 2026-10-28 (no itemized step results). Seen during use: start/provision runs, a forwarded-port collision on resume (Vagrant error, reported as a failed operation), a provisioner failure whose summary hid the cause (fixed in `69e74ac`), VMX `pcislotnumber` warnings from the vmware plugin (harmless) |
+| Manual lifecycle on Windows, VirtualBox | Not reported |
 | Windows CI for Phases 3–4 | Not yet pushed |
 
 ## Phase 3 results (2026-10-28)
@@ -117,9 +123,9 @@ Vagrant prints guest output to stdout; failure summaries of human-output command
 include the last output lines.
 
 ## Next recommended task
-1. User walkthrough of `docs/testing/manual-lifecycle.md` on Windows with VMware
-   Desktop, then VirtualBox; record results in provider-capabilities.md and here.
-2. Push and confirm the Windows CI run for Phases 3–4.
-3. Phase 5: Vagrantfile editor.
+1. Push and confirm the Windows CI run for Phases 3–4.
+2. Phase 5: Vagrantfile editor (raw editor, `crates/config-model`, visual forms, diff
+   preview, backup and atomic save).
+3. Optional: VirtualBox lifecycle run of `docs/testing/manual-lifecycle.md` on Windows.
 4. Before release: install the CI NSIS installer by hand on Windows 11.
 5. Later: re-enable the Ubuntu/Fedora CI jobs.
