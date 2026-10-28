@@ -20,3 +20,6 @@ Thumbs.db
 # Local env
 .env
 .env.*
+
+# Vagrant state (e.g. from validating templates)
+.vagrant/

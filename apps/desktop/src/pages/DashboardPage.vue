@@ -1,11 +1,18 @@
 <script setup lang="ts">
-import { FolderKanban, History } from '@lucide/vue'
+import { computed, onMounted } from 'vue'
+import { FolderKanban, History, Star } from '@lucide/vue'
 import PageHeader from '@/components/layout/PageHeader.vue'
 import EmptyState from '@/components/layout/EmptyState.vue'
 import HostReadinessCard from '@/components/host/HostReadinessCard.vue'
 import StatusBadge from '@/components/status/StatusBadge.vue'
 import { MACHINE_STATES } from '@/components/status/machine-state'
 import { Card, CardHeader } from '@/components/ui/card'
+import { recentProjects, relativeTime } from '@/lib/projects'
+import { useProjectsStore } from '@/stores/projects'
+
+const projects = useProjectsStore()
+onMounted(() => void projects.load())
+const recent = computed(() => recentProjects(projects.projects))
 </script>
 
 <template>
@@ -16,11 +23,63 @@ import { Card, CardHeader } from '@/components/ui/card'
 
   <div class="grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
     <Card>
-      <CardHeader title="Recent projects" />
+      <CardHeader title="Recent projects">
+        <template #actions>
+          <RouterLink :to="{ name: 'projects' }" class="text-xs text-accent hover:underline">
+            All projects
+          </RouterLink>
+        </template>
+      </CardHeader>
+      <dl v-if="projects.loaded && !projects.error" class="grid grid-cols-3 border-b text-center">
+        <div class="px-3 py-3">
+          <dt class="text-xs text-muted">Projects</dt>
+          <dd class="text-lg font-semibold tabular-nums">{{ projects.active.length }}</dd>
+        </div>
+        <div class="border-x px-3 py-3">
+          <dt class="text-xs text-muted">Favorites</dt>
+          <dd class="text-lg font-semibold tabular-nums">
+            {{ projects.active.filter((p) => p.favorite).length }}
+          </dd>
+        </div>
+        <div class="px-3 py-3">
+          <dt class="text-xs text-muted">Archived</dt>
+          <dd class="text-lg font-semibold tabular-nums">{{ projects.archived.length }}</dd>
+        </div>
+      </dl>
+      <ul v-if="recent.length" class="divide-y">
+        <li v-for="p in recent" :key="p.id">
+          <RouterLink
+            :to="{ name: 'project', params: { id: p.id } }"
+            class="flex items-center justify-between gap-3 px-5 py-3 hover:bg-surface-muted"
+          >
+            <span class="flex min-w-0 items-center gap-2">
+              <Star
+                v-if="p.favorite"
+                class="size-3.5 shrink-0 fill-status-transition text-status-transition"
+                aria-label="Favorite"
+              />
+              <span class="truncate font-medium">{{ p.name }}</span>
+            </span>
+            <span class="shrink-0 text-xs text-muted">{{ relativeTime(p.lastOpenedAt!) }}</span>
+          </RouterLink>
+        </li>
+      </ul>
       <EmptyState
+        v-else
         :icon="FolderKanban"
-        title="No projects yet"
-        description="Projects you create or import will be listed here."
+        :title="
+          projects.error
+            ? 'Projects unavailable'
+            : projects.active.length
+              ? 'Nothing opened yet'
+              : 'No projects yet'
+        "
+        :description="
+          projects.error ??
+          (projects.active.length
+            ? 'Projects you open will be listed here.'
+            : 'Create or import a project to get started.')
+        "
       />
     </Card>
 

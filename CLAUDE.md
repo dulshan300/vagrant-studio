@@ -33,7 +33,8 @@ The `vagrant-studio` crate (apps/desktop/src-tauri) needs WebKitGTK 4.1 dev pack
 
 ## Architecture (see docs/architecture.md)
 
-- **Modular monolith.** The Cargo workspace root is the repo root; members are `apps/desktop/src-tauri` and `crates/*`. The app crate holds only Tauri commands, wiring and the event bridge. Business logic goes in `crates/*` behind traits (`PlatformAdapter`, and later `VagrantExecutor`, repositories, `EventSink`) with fakes for tests. New crates (`domain`, `project-store`, `vagrant-adapter`, `operation-engine`, `provider-registry`, `config-model`) are created only when the phase that needs them starts.
+- **Modular monolith.** The Cargo workspace root is the repo root; members are `apps/desktop/src-tauri` and `crates/*`. The app crate holds only Tauri commands (`src-tauri/src/commands/`, errors mapped to `CommandError { kind, message, field, existing }`), wiring and the event bridge. Current crates: `platform` (host/WSL detection, executable discovery), `domain` (types, validation, portable format; no I/O), `project-store` (SQLite via SQLx, the `Store` type), `project-service` (`ProjectService`, the only code that writes to project folders). Future crates (`vagrant-adapter`, `operation-engine`, `provider-registry`, `config-model`) are created only when their phase starts.
+- **Persistence:** migrations live in `/migrations` (embedded with `sqlx::migrate!`; never edit an applied migration, add a new one). SQLx 0.9 accepts only `&'static str` SQL; build variants with `concat!` macros, bind all values, and don't use `AssertSqlSafe`. Timestamps are RFC 3339 UTC with variable fraction digits, so compare parsed values, never strings (Rust or TS). Tests use `Store::open_in_memory()`, not mocks (ADR-0007).
 - **Vagrant is the lifecycle authority.** Only invoke the host's `vagrant` CLI, with an argv vector (never a shell string) and an explicit working directory set to the environment root. Machine state shown in the UI comes from `vagrant status`, never from the DB or guesses. Don't invent metrics; show "unknown/unavailable".
 - **Host Vagrant only** (ADR-0002): never bundle or install Vagrant, providers or plugins, and never change host virtualization or network settings.
 - **WSL caveat** (ADR-0004): development runs in WSL2, but releases must use the native OS's Vagrant. `crates/platform` skips `/mnt/<drive>` PATH entries under WSL so Linux builds never pick up Windows executables. A WSL build proves nothing about Windows.
@@ -43,7 +44,9 @@ The `vagrant-studio` crate (apps/desktop/src-tauri) needs WebKitGTK 4.1 dev pack
 
 ## Rules specific to this project
 
-- Never overwrite user Vagrantfiles or project files without diff, backup and explicit confirmation (ADR-0005). Deleting app metadata must never delete files or destroy VMs.
+- Never overwrite user Vagrantfiles or project files without diff, backup and explicit confirmation (ADR-0005). Deleting app metadata must never delete files or destroy VMs. File deletion only goes to the OS trash, through `ProjectService::delete`'s safeguards (ADR-0007).
+- Paths: canonicalize with `dunce`, reject non-UTF-8, and check environment folders stay inside the project root. Windows filesystems are case-insensitive and `DirEntry::metadata()` is stale on Windows; use `fs::metadata(path)` when accuracy matters.
+- Tauri npm packages and Rust crates must match on major.minor (`tauri build` fails otherwise); `rust-version` in `Cargo.toml` limits which crate versions Cargo picks (ADR-0006).
 - Don't claim a provider or platform works until it has been tested natively; record results in `docs/provider-capabilities.md` and `docs/implementation-status.md`. VirtualBox is the first provider path (ADR-0003).
 - TypeScript is held at 6.0.x because typescript-eslint requires `<6.1` (ADR-0006).
 - Tests needing a real VM must be opt-in (`#[ignore]` plus an env var), separate from tests that run anywhere.

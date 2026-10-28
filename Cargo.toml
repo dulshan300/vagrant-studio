@@ -5,7 +5,7 @@ members = ["apps/desktop/src-tauri", "crates/*"]
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.90"
+rust-version = "1.94"
 license = "MIT"
 repository = "https://github.com/OWNER/vagrant-studio"
 
@@ -16,8 +16,17 @@ thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 tempfile = "3"
+time = { version = "0.3", features = ["serde", "formatting", "parsing", "macros"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs"] }
+uuid = { version = "1", features = ["v7", "serde"] }
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "sqlite-bundled", "migrate", "macros", "time", "uuid"] }
+trash = "5"
+dunce = "1"
 
+vagrant-studio-domain = { path = "crates/domain" }
 vagrant-studio-platform = { path = "crates/platform" }
+vagrant-studio-project-service = { path = "crates/project-service" }
+vagrant-studio-project-store = { path = "crates/project-store" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

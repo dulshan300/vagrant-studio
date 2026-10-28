@@ -1,9 +1,14 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { Monitor, Moon, Sun } from '@lucide/vue'
 import { RadioGroupItem, RadioGroupRoot } from 'reka-ui'
 import PageHeader from '@/components/layout/PageHeader.vue'
 import { Card, CardHeader } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import FolderInput from '@/components/ui/form/FolderInput.vue'
+import { useFormErrors } from '@/composables/useFormErrors'
+import { hasBackend } from '@/services/app'
+import { settingsApi } from '@/services/projects'
 import { describeHost } from '@/components/host/host'
 import { isThemePreference, type ThemePreference } from '@/app/theme'
 import { useAppStore } from '@/stores/app'
@@ -11,9 +16,31 @@ import { useSettingsStore } from '@/stores/settings'
 
 const settings = useSettingsStore()
 const app = useAppStore()
-onMounted(() => {
+const location = ref('')
+const savedLocation = ref('')
+const locationErrors = useFormErrors()
+
+onMounted(async () => {
   if (!app.loaded) void app.load()
+  if (!hasBackend()) return
+  try {
+    savedLocation.value = (await settingsApi.get()).defaultProjectLocation ?? ''
+    location.value = savedLocation.value
+  } catch (e) {
+    locationErrors.set(e)
+  }
 })
+
+async function saveLocation() {
+  locationErrors.clear()
+  try {
+    const saved = await settingsApi.save({ defaultProjectLocation: location.value.trim() || null })
+    savedLocation.value = saved.defaultProjectLocation ?? ''
+    location.value = savedLocation.value
+  } catch (e) {
+    locationErrors.set(e)
+  }
+}
 
 const themeOptions: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
   { value: 'light', label: 'Light', icon: Sun },
@@ -51,6 +78,29 @@ function onThemeChange(value: unknown) {
           </RadioGroupItem>
         </RadioGroupRoot>
       </div>
+    </Card>
+
+    <Card v-if="hasBackend()">
+      <CardHeader
+        title="Projects"
+        description="Stored in the application database on this computer."
+      />
+      <form class="space-y-1.5 px-5 py-4" @submit.prevent="saveLocation">
+        <label for="settings-location" class="block text-xs font-medium"
+          >Default location for new projects</label
+        >
+        <div class="flex gap-2">
+          <div class="flex-1"><FolderInput id="settings-location" v-model="location" /></div>
+          <Button type="submit" :disabled="location === savedLocation">Save</Button>
+        </div>
+        <p
+          v-if="locationErrors.field.value.defaultProjectLocation || locationErrors.general.value"
+          class="text-xs text-status-failed"
+          role="alert"
+        >
+          {{ locationErrors.field.value.defaultProjectLocation ?? locationErrors.general.value }}
+        </p>
+      </form>
     </Card>
 
     <Card>

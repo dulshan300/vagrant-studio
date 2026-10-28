@@ -4,6 +4,8 @@ import { NAV_ITEMS } from '@/app/navigation'
 
 const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform)
 const modifier = isMac ? '⌘' : 'Ctrl+'
+// Sections other than the dashboard stay highlighted on nested routes (e.g. /projects/:id).
+const activeClass = 'bg-surface-muted !text-foreground font-medium'
 </script>
 
 <template>
@@ -23,7 +25,8 @@ const modifier = isMac ? '⌘' : 'Ctrl+'
           <RouterLink
             :to="item.path"
             class="group flex items-center gap-3 rounded-md px-2.5 py-2 text-muted transition-colors hover:bg-surface-muted hover:text-foreground"
-            exact-active-class="bg-surface-muted !text-foreground font-medium"
+            :active-class="item.path === '/' ? undefined : activeClass"
+            :exact-active-class="activeClass"
             :title="`${item.label} (${modifier}${index + 1})`"
           >
             <component :is="item.icon" class="size-4 shrink-0" aria-hidden="true" />

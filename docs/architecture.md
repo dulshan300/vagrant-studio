@@ -25,6 +25,7 @@ Vagrant owns.
 │                                                                         │
 │    crates/domain            entities, IDs, state machines (no I/O)      │
 │    crates/project-store     SQLx/SQLite repositories + migrations       │
+│    crates/project-service   project use cases; only writer of files     │
 │    crates/vagrant-adapter   VagrantExecutor, arg builders, parsers      │
 │    crates/operation-engine  OperationScheduler, conflict detection      │
 │    crates/provider-registry capability model + provider detection       │
@@ -42,7 +43,8 @@ Vagrant owns.
 |---|---|---|---|
 | `domain` | Entity types (`Project`, `Environment`, `MachineConfig`, `Operation`), ID newtypes, operation state machine, validation rules | serde, uuid, time | do I/O or know about Tauri |
 | `platform` | `PlatformAdapter`: OS/arch detection, WSL detection, executable discovery (`PATH`, `PATHEXT`, well-known install dirs), path normalization, opening folders and terminals | std | depend on Tauri or the DB |
-| `project-store` | `ProjectRepository`, `EnvironmentRepository`, `OperationRepository`, settings; SQLx migrations | domain, sqlx | hold machine runtime state as truth |
+| `project-store` | Project, environment, tag and settings persistence (`Store`); later operations; SQLx migrations in `/migrations` | domain, sqlx | hold machine runtime state as truth |
+| `project-service` | `ProjectService`: create (templates), inspect, import, update, archive, delete (metadata, or folder → OS trash), portable `project.json` | domain, project-store | write to project folders except through its documented safe paths (ADR-0007) |
 | `vagrant-adapter` | `VagrantExecutor` trait and process implementation, typed `VagrantCommand` → argv builder, output parsers (`--machine-readable`), fixture tests | domain, platform, tokio | build shell strings |
 | `operation-engine` | `OperationScheduler`: queue, per-environment mutual exclusion, cancellation, log files, event emission through an `EventSink` trait | domain, vagrant-adapter, project-store | depend on Tauri directly |
 | `provider-registry` | `ProviderAdapter` trait, capability flags, prerequisite checks | domain, platform, vagrant-adapter | promise capabilities that detection didn't confirm |
@@ -50,12 +52,14 @@ Vagrant owns.
 | `src-tauri` (app) | Tauri commands, event bridge (`EventSink` impl), state wiring, tracing setup, capabilities | all crates | contain business logic |
 
 Crates are created **when the phase that needs them starts** (see the
-roadmap), so the workspace never holds empty scaffolding. Phase 1 creates only
-`platform` and the app crate.
+roadmap), so the workspace never holds empty scaffolding. Present so far:
+`platform` (Phase 1), plus `domain`, `project-store` and `project-service`
+(Phase 2).
 
 Every trait that touches the outside world (`VagrantExecutor`,
-`PlatformAdapter`, repositories, `EventSink`, filesystem) has an in-memory or
-fake implementation for tests. Business logic is tested without a real
+`PlatformAdapter`, `EventSink`) has a fake implementation for tests.
+Persistence is tested against real in-memory SQLite, and destructive file
+actions go through injectable functions (ADR-0007). Business logic is tested without a real
 Vagrant, VM or WebView.
 
 ## 3. Process execution model

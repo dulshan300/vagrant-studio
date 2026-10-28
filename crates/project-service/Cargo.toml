@@ -1,0 +1,26 @@
+[package]
+name = "vagrant-studio-project-service"
+description = "Project use cases: create, import, inspect, portable metadata, templates"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+dunce.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+time.workspace = true
+tracing.workspace = true
+trash.workspace = true
+vagrant-studio-domain.workspace = true
+vagrant-studio-project-store.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true

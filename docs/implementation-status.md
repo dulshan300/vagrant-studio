@@ -3,13 +3,26 @@
 _Last updated: 2026-10-28_
 
 ## Current phase
-**Phase 1 — Desktop foundation: complete for Windows** (Linux native builds paused). Next: Phase 2.
+**Phase 2 — Persistence and project management: implemented and tested; awaiting user check on Windows.**
 
 ## Completed phases
 - **Phase 0 — Inspection and planning** (2026-10-28): architecture, roadmap,
   provider capabilities, ADRs 0001–0006, risks (architecture.md §11).
 - **Phase 1 — Desktop foundation** (2026-10-28, Windows): green Windows CI with NSIS
   installer; native Windows launch verified by the user.
+
+## Phase 2 results (2026-10-28)
+| Check | Result |
+|---|---|
+| Rust tests, Linux (`cargo test --workspace`) | Pass: domain 12, platform 12, project-store 13, project-service 18 |
+| Same crates as Windows binaries (windows-gnu via WSL interop) | Pass, after fixing 2 Windows-only issues (case-insensitive Vagrantfile name; stale `DirEntry` metadata in a test) |
+| clippy `-D warnings` / rustfmt | Pass |
+| Frontend lint, typecheck, tests | Pass, 22 tests |
+| Templates `vagrant validate` (Windows Vagrant 2.4.9) | Pass, all 3 |
+| Acceptance: restart persistence, import changes no files, metadata delete keeps files, migration tests | Covered by automated tests, all passing |
+| Windows app launch (local build) | Starts; database created in `%APPDATA%\dev.vagrantstudio.desktop` |
+| Manual UI walkthrough on Windows | **Pending** |
+| Windows CI for Phase 2 | Not yet pushed |
 
 ## Phase 1 progress
 | Task | State |

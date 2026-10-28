@@ -1,0 +1,18 @@
+[package]
+name = "vagrant-studio-domain"
+description = "Domain model and validation rules for Vagrant Studio (no I/O)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+time.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true

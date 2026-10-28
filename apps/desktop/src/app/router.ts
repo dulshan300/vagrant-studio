@@ -3,6 +3,11 @@ import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-rou
 export const routes: RouteRecordRaw[] = [
   { path: '/', name: 'dashboard', component: () => import('@/pages/DashboardPage.vue') },
   { path: '/projects', name: 'projects', component: () => import('@/pages/ProjectsPage.vue') },
+  {
+    path: '/projects/:id',
+    name: 'project',
+    component: () => import('@/pages/ProjectPage.vue'),
+  },
   { path: '/machines', name: 'machines', component: () => import('@/pages/MachinesPage.vue') },
   { path: '/boxes', name: 'boxes', component: () => import('@/pages/BoxesPage.vue') },
   { path: '/providers', name: 'providers', component: () => import('@/pages/ProvidersPage.vue') },

@@ -31,15 +31,16 @@ Smallest sequence:
 Acceptance: app launches on target OSes; UI navigable; CI runs tests; no new warnings.
 
 ## Phase 2 — Persistence and project management
-- [ ] `crates/domain`: Project, Environment, MachineConfig, Operation, tags, notes, tasks; ID newtypes; validation
-- [ ] `crates/project-store`: SQLx SQLite pool in the app data dir, `migrations/` (all tables from spec §7 with FKs and indexes), repositories, migration tests
-- [ ] App settings move to SQLite (theme stays in localStorage as a per-device UI preference)
-- [ ] Commands + services + stores for projects/environments
-- [ ] Projects list (search, sort, filter, tags, favorites, archive/restore), dashboard counts, recents
-- [ ] Create / import (read-only import, no file changes) / edit / rename / delete metadata (files untouched by default; separate confirmed file deletion)
-- [ ] Portable `.vagrant-studio/project.json` (schemaVersion 1, validation, no overwrite without confirmation)
-- [ ] Templates (`templates/single-linux-vm`, `web-database`, `multi-tier-app`)
-- [ ] Tests: repositories, migrations, restart persistence, import does not modify files
+- [x] `crates/domain`: Project, Environment, status/type enums, UUIDv7 IDs, validation (names, URLs without credentials, tags, slugs), portable format
+- [x] `crates/project-store`: SQLx SQLite in the app data dir (WAL, FKs), `migrations/0001_initial.sql` (all spec §7 tables, FKs, indexes), project/environment/tag/settings persistence, migration tests
+- [x] `crates/project-service`: create (empty or template), inspect (read-only), import, add/remove environments, update, favorite, archive/restore, delete (metadata; optional folder → OS trash with safeguards), portable metadata preview/write
+- [x] App settings in SQLite (default project location); theme stays a per-device localStorage preference
+- [x] Tauri commands with structured errors; folder picker via the dialog plugin (`dialog:allow-open` only)
+- [x] Projects page (All/Favorites/Archived, search, tag filters, sort), project page (details editing, environments, archive, portable file, remove), dashboard counts and recent projects
+- [x] Portable `.vagrant-studio/project.json` v1 (docs/project-format.md)
+- [x] Templates `single-linux-vm`, `web-database`, `multi-tier-app` (validated by `vagrant validate`, Windows Vagrant 2.4.9)
+- [x] Tests: repositories, migrations, restart persistence, import leaves files unchanged, metadata delete keeps files, deletion safeguards, portable round-trip; run on Linux and as Windows binaries
+- [ ] Notes and tasks UI (tables exist; UI scheduled with the developer workspace in Phase 7)
 
 ## Phase 3 — Vagrant CLI integration
 - [ ] `crates/vagrant-adapter`: discovery (via `platform`), `--version`, typed `VagrantCommand` → argv, tokio process runner with streaming, timeouts, cancellation, process-tree kill
