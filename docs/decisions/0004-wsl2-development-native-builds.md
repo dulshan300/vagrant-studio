@@ -34,3 +34,9 @@ VirtualBox is a WSL-only arrangement).
 - Supported versions for the first release: Windows 11 x64 (23H2+),
   Ubuntu 24.04 LTS x64, the current Fedora release x64 (CI pins the image tag).
 - ARM64 is out of scope initially.
+
+## Amendment (2026-10-28)
+For now, CI runs only the Windows job, to concentrate on the first native
+target. The Ubuntu and Fedora jobs are commented out in
+`.github/workflows/ci.yml`, not deleted, and will be re-enabled later. Until
+then, no Linux release claims are made.

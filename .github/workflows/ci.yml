@@ -28,14 +28,16 @@ jobs:
           - name: Windows 11 x64
             os: windows-latest
             bundles: nsis
-          - name: Ubuntu 24.04 x64
-            os: ubuntu-24.04
-            bundles: deb,appimage
-          - name: Fedora x64 (container)
-            os: ubuntu-24.04
-            # Current Fedora release; bump when it reaches end of life.
-            container: fedora:44
-            bundles: rpm
+          # Linux builds are paused while Windows is the focus; uncomment to re-enable.
+          # The Linux-only steps below stay in place for when they return.
+          # - name: Ubuntu 24.04 x64
+          #   os: ubuntu-24.04
+          #   bundles: deb,appimage
+          # - name: Fedora x64 (container)
+          #   os: ubuntu-24.04
+          #   # Current Fedora release; bump when it reaches end of life.
+          #   container: fedora:44
+          #   bundles: rpm
     steps:
       - name: Install system packages (Fedora)
         if: matrix.container
