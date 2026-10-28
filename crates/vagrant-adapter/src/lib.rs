@@ -12,7 +12,7 @@ use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 use vagrant_studio_platform::PlatformAdapter;
 
-pub use command::{MachineName, VagrantCommand};
+pub use command::{LifecycleAction, MachineName, StateClass, VagrantCommand};
 pub use runner::{Invocation, OutputLine, ProcessRunner, RunResult, Runner, Stream, Termination};
 
 /// Finds the Vagrant executable: a configured override if it exists, else the

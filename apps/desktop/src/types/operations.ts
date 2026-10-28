@@ -21,6 +21,23 @@ export interface Operation {
   createdAt: string
 }
 
+/** Mirrors `LifecycleAction` in crates/vagrant-adapter. */
+export type LifecycleAction =
+  'up' | 'halt' | 'reload' | 'suspend' | 'resume' | 'provision' | 'destroy'
+
+/** One-time token for a destructive action (crates/operation-engine `Confirmation`). */
+export interface Confirmation {
+  token: string
+  /** What the user has to type. */
+  phrase: string
+  expiresAt: string
+}
+
+export interface ConfirmationProof {
+  token: string
+  typed: string
+}
+
 export interface LogLine {
   kind: 'out' | 'err' | 'meta'
   text: string
@@ -51,6 +68,7 @@ export interface OperationEvent {
   machineName: string | null
   payload: {
     line?: string
+    message?: string
     operation?: Operation
     status?: EnvironmentStatus
   }

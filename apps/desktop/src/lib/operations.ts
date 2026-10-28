@@ -1,7 +1,10 @@
 import type { MachineState } from '@/components/status/machine-state'
-import type { LogLine, Operation, OperationStatus } from '@/types/operations'
+import type { LifecycleAction, LogLine, Operation, OperationStatus } from '@/types/operations'
 
-/** Maps Vagrant provider states to the UI's status vocabulary. Unknown values stay unknown. */
+/**
+ * Maps Vagrant provider states to the UI's status vocabulary. Unknown values stay unknown.
+ * Keep in sync with `StateClass::of` in crates/vagrant-adapter.
+ */
 export function machineState(vagrantState: string | null | undefined): MachineState {
   switch (vagrantState) {
     case 'running':
@@ -22,6 +25,58 @@ export function machineState(vagrantState: string | null | undefined): MachineSt
     default:
       return 'unknown'
   }
+}
+
+export const LIFECYCLE_ACTIONS: readonly LifecycleAction[] = [
+  'up',
+  'halt',
+  'reload',
+  'suspend',
+  'resume',
+  'provision',
+  'destroy',
+]
+
+const ACTIONS_BY_STATE: Partial<Record<MachineState, readonly LifecycleAction[]>> = {
+  running: ['halt', 'reload', 'suspend', 'provision', 'destroy'],
+  stopped: ['up', 'reload', 'destroy'],
+  suspended: ['resume', 'up', 'halt', 'destroy'],
+  notCreated: ['up'],
+}
+
+/**
+ * Actions that make sense for a machine in this state. When the state is
+ * unknown every action is offered and Vagrant decides.
+ */
+export function actionsFor(state: MachineState): readonly LifecycleAction[] {
+  return ACTIONS_BY_STATE[state] ?? LIFECYCLE_ACTIONS
+}
+
+/** The one-click action shown on a machine row, if any. */
+export function primaryAction(state: MachineState): LifecycleAction | null {
+  switch (state) {
+    case 'running':
+      return 'halt'
+    case 'stopped':
+    case 'notCreated':
+      return 'up'
+    case 'suspended':
+      return 'resume'
+    default:
+      return null
+  }
+}
+
+/**
+ * Machines a lifecycle operation names, read from its command line
+ * (`vagrant <verb> [--flags] <names…>`). Machine names never start with `-`.
+ */
+export function targetMachines(op: Pick<Operation, 'operationType' | 'commandLine'>): string[] {
+  if (!(LIFECYCLE_ACTIONS as readonly string[]).includes(op.operationType)) return []
+  return op.commandLine
+    .split(' ')
+    .slice(2)
+    .filter((t) => t && !t.startsWith('-'))
 }
 
 export const ACTIVE_STATUSES: readonly OperationStatus[] = ['queued', 'running', 'cancel_requested']

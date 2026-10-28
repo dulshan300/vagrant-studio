@@ -16,12 +16,14 @@ time.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
 tracing.workspace = true
+uuid.workspace = true
 vagrant-studio-domain.workspace = true
 vagrant-studio-project-store.workspace = true
 vagrant-studio-vagrant-adapter.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+vagrant-studio-platform.workspace = true
 
 [lints]
 workspace = true

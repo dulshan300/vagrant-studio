@@ -4665,7 +4665,9 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+ "uuid",
  "vagrant-studio-domain",
+ "vagrant-studio-platform",
  "vagrant-studio-project-store",
  "vagrant-studio-vagrant-adapter",
 ]
@@ -4715,6 +4717,7 @@ version = "0.1.0"
 dependencies = [
  "process-wrap",
  "serde",
+ "serde_json",
  "tempfile",
  "thiserror 2.0.21",
  "tokio",

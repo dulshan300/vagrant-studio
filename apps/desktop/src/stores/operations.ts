@@ -4,8 +4,10 @@ import { operationsApi, onOperationEvent } from '@/services/operations'
 import { errorMessage } from '@/services/errors'
 import { isActive } from '@/lib/operations'
 import type {
+  ConfirmationProof,
   EnvironmentStatus,
   HostReadiness,
+  LifecycleAction,
   LogLine,
   Operation,
   OperationEvent,
@@ -116,6 +118,18 @@ export const useOperationsStore = defineStore('operations', () => {
     return op
   }
 
+  async function runLifecycle(
+    environmentId: string,
+    action: LifecycleAction,
+    machines: string[],
+    confirmation: ConfirmationProof | null = null,
+  ) {
+    const op = await operationsApi.runLifecycle(environmentId, action, machines, confirmation)
+    upsert(op)
+    logs.value[op.id] ??= []
+    return op
+  }
+
   async function cancel(id: string) {
     return operationsApi.cancel(id)
   }
@@ -133,6 +147,11 @@ export const useOperationsStore = defineStore('operations', () => {
 
   function latestFor(environmentId: string): Operation | undefined {
     return operations.value.find((o) => o.environmentId === environmentId)
+  }
+
+  /** Queued and running operations for an environment, oldest first. */
+  function activeFor(environmentId: string): Operation[] {
+    return active.value.filter((o) => o.environmentId === environmentId).reverse()
   }
 
   return {
@@ -155,9 +174,11 @@ export const useOperationsStore = defineStore('operations', () => {
     checkHost,
     refreshStatus,
     validate,
+    runLifecycle,
     cancel,
     open,
     close,
     latestFor,
+    activeFor,
   }
 })

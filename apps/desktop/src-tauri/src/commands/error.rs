@@ -28,6 +28,10 @@ impl CommandError {
         Self::new("internal", message)
     }
 
+    pub fn validation(message: impl Into<String>) -> Self {
+        Self::new("validation", message)
+    }
+
     /// A prerequisite (e.g. Vagrant itself) is missing.
     pub fn unavailable(message: impl Into<String>) -> Self {
         Self::new("unavailable", message)
@@ -65,7 +69,15 @@ pub type CommandResult<T> = Result<T, CommandError>;
 
 impl From<vagrant_studio_operation_engine::EngineError> for CommandError {
     fn from(err: vagrant_studio_operation_engine::EngineError) -> Self {
-        tracing::error!(error = %err, "operation engine error");
-        Self::internal(err.to_string())
+        use vagrant_studio_operation_engine::EngineError;
+        match err {
+            EngineError::Conflict(m) => Self::new("conflict", m),
+            EngineError::Confirmation(m) => Self::new("confirmationRequired", m),
+            EngineError::Invalid(m) => Self::validation(m),
+            err => {
+                tracing::error!(error = %err, "operation engine error");
+                Self::internal(err.to_string())
+            }
+        }
     }
 }

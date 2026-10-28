@@ -63,6 +63,8 @@ pub fn run() {
             commands::operations::get_host_readiness,
             commands::operations::refresh_environment_status,
             commands::operations::validate_environment,
+            commands::operations::run_lifecycle,
+            commands::operations::request_lifecycle_confirmation,
             commands::operations::get_environment_status,
             commands::operations::list_environment_statuses,
             commands::operations::list_operations,

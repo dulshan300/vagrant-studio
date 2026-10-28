@@ -3,19 +3,29 @@ use std::time::Duration;
 
 use tauri::{AppHandle, Emitter, Runtime, State};
 use vagrant_studio_domain::{EnvironmentId, Operation, OperationId, OperationType};
+use vagrant_studio_operation_engine::lifecycle::{
+    confirmation_phrase, operation_type, order_targets,
+};
 use vagrant_studio_operation_engine::{
-    EnvironmentStatus, EventSink, LogLine, OperationEngine, OperationEvent, OperationRequest,
+    Confirmation, ConfirmationProof, EnvironmentStatus, EventSink, LogLine, OperationEngine,
+    OperationEvent, OperationRequest,
 };
 use vagrant_studio_platform::SystemPlatform;
 use vagrant_studio_project_service::ProjectService;
 use vagrant_studio_vagrant_adapter::readiness::{Checker, HostReadiness, TcpProbe};
-use vagrant_studio_vagrant_adapter::{ProcessRunner, VagrantCommand, locate};
+use vagrant_studio_vagrant_adapter::{
+    LifecycleAction, MachineName, ProcessRunner, VagrantCommand, locate,
+};
 
 use super::error::{CommandError, CommandResult};
 
 /// Tauri event carrying every [`OperationEvent`].
 pub const OPERATION_EVENT: &str = "vagrant-studio://operation";
 const LOG_LINES: usize = 5_000;
+const STATUS_TIMEOUT: Duration = Duration::from_secs(180);
+/// A safety net only: `up` may download a multi-gigabyte box first, and the
+/// user can cancel at any time.
+const LIFECYCLE_TIMEOUT: Duration = Duration::from_secs(4 * 60 * 60);
 
 /// Forwards engine events to the WebView.
 pub struct TauriSink<R: Runtime>(pub AppHandle<R>);
@@ -56,12 +66,20 @@ pub async fn get_host_readiness(
     .await)
 }
 
+/// What to run in an environment, beyond the command itself.
+struct EnvironmentRun {
+    operation_type: OperationType,
+    command: VagrantCommand,
+    machines: Vec<MachineName>,
+    timeout: Duration,
+    confirmation: Option<ConfirmationProof>,
+}
+
 async fn start_environment_operation(
     projects: &ProjectService,
     engine: &OperationEngine,
     environment_id: EnvironmentId,
-    operation_type: OperationType,
-    command: VagrantCommand,
+    run: EnvironmentRun,
 ) -> CommandResult<Operation> {
     let (project, env) = projects.environment(environment_id).await?;
     if !Path::new(&env.root_path).is_dir() {
@@ -71,23 +89,32 @@ async fn start_environment_operation(
         )));
     }
     let program = vagrant_program(projects).await?;
+    let names: Vec<&str> = run.machines.iter().map(MachineName::as_str).collect();
+    let mut target_label = format!("{} · {}", project.name, env.name);
+    if !names.is_empty() {
+        target_label = format!("{target_label} · {}", names.join(", "));
+    }
     Ok(engine
         .start(OperationRequest {
-            operation_type,
-            command,
+            operation_type: run.operation_type,
+            command: run.command,
             program,
             working_dir: PathBuf::from(&env.root_path),
             project_id: Some(project.id),
             environment_id: Some(env.id),
-            machine_name: None,
-            target_label: format!("{} · {}", project.name, env.name),
+            machine_name: match names.as_slice() {
+                [one] => Some((*one).to_owned()),
+                _ => None,
+            },
+            target_label,
             // Machines that don't exist yet are reported for the default provider.
             env: env
                 .default_provider
                 .iter()
                 .map(|p| ("VAGRANT_DEFAULT_PROVIDER".to_owned(), p.clone()))
                 .collect(),
-            timeout: Some(Duration::from_secs(180)),
+            timeout: Some(run.timeout),
+            confirmation: run.confirmation,
         })
         .await?)
 }
@@ -102,8 +129,13 @@ pub async fn refresh_environment_status(
         &projects,
         &engine,
         environment_id,
-        OperationType::Status,
-        VagrantCommand::Status { machine: None },
+        EnvironmentRun {
+            operation_type: OperationType::Status,
+            command: VagrantCommand::Status { machine: None },
+            machines: vec![],
+            timeout: STATUS_TIMEOUT,
+            confirmation: None,
+        },
     )
     .await
 }
@@ -118,10 +150,84 @@ pub async fn validate_environment(
         &projects,
         &engine,
         environment_id,
-        OperationType::Validate,
-        VagrantCommand::Validate,
+        EnvironmentRun {
+            operation_type: OperationType::Validate,
+            command: VagrantCommand::Validate,
+            machines: vec![],
+            timeout: STATUS_TIMEOUT,
+            confirmation: None,
+        },
     )
     .await
+}
+
+/// Machines checked against the last `vagrant status`, in Vagrantfile order.
+async fn lifecycle_targets(
+    engine: &OperationEngine,
+    environment_id: EnvironmentId,
+    machines: &[String],
+) -> CommandResult<Vec<MachineName>> {
+    let status = engine.environment_status(environment_id).await?;
+    Ok(order_targets(status.as_ref(), machines)?)
+}
+
+/// Runs `up`, `halt`, `reload`, `suspend`, `resume`, `provision` or `destroy`
+/// for the named machines. `destroy` needs a confirmation from
+/// [`request_lifecycle_confirmation`].
+#[tauri::command]
+pub async fn run_lifecycle(
+    projects: State<'_, ProjectService>,
+    engine: State<'_, OperationEngine>,
+    environment_id: EnvironmentId,
+    action: LifecycleAction,
+    machines: Vec<String>,
+    confirmation: Option<ConfirmationProof>,
+) -> CommandResult<Operation> {
+    let targets = lifecycle_targets(&engine, environment_id, &machines).await?;
+    start_environment_operation(
+        &projects,
+        &engine,
+        environment_id,
+        EnvironmentRun {
+            operation_type: operation_type(action),
+            command: VagrantCommand::Lifecycle {
+                action,
+                machines: targets.clone(),
+            },
+            machines: targets,
+            timeout: LIFECYCLE_TIMEOUT,
+            confirmation,
+        },
+    )
+    .await
+}
+
+/// Issues the one-time token and the phrase to type for a destructive action.
+#[tauri::command]
+pub async fn request_lifecycle_confirmation(
+    projects: State<'_, ProjectService>,
+    engine: State<'_, OperationEngine>,
+    environment_id: EnvironmentId,
+    action: LifecycleAction,
+    machines: Vec<String>,
+) -> CommandResult<Confirmation> {
+    if !action.is_destructive() {
+        return Err(CommandError::validation(format!(
+            "`vagrant {}` doesn't need confirmation.",
+            action.verb()
+        )));
+    }
+    let (_, env) = projects.environment(environment_id).await?;
+    let targets = lifecycle_targets(&engine, environment_id, &machines).await?;
+    let phrase = confirmation_phrase(&env.name, &targets);
+    Ok(engine.confirm(
+        environment_id,
+        VagrantCommand::Lifecycle {
+            action,
+            machines: targets,
+        },
+        phrase,
+    ))
 }
 
 #[tauri::command]

@@ -39,7 +39,75 @@ impl From<MachineName> for String {
     }
 }
 
-/// Commands Vagrant Studio runs. Lifecycle variants are executed from Phase 4.
+/// Machine lifecycle commands, run with explicit machine names.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LifecycleAction {
+    Up,
+    Halt,
+    Reload,
+    Suspend,
+    Resume,
+    Provision,
+    Destroy,
+}
+
+impl LifecycleAction {
+    pub fn verb(self) -> &'static str {
+        match self {
+            Self::Up => "up",
+            Self::Halt => "halt",
+            Self::Reload => "reload",
+            Self::Suspend => "suspend",
+            Self::Resume => "resume",
+            Self::Provision => "provision",
+            Self::Destroy => "destroy",
+        }
+    }
+
+    /// Needs a typed confirmation in the UI and a backend confirmation token.
+    pub fn is_destructive(self) -> bool {
+        matches!(self, Self::Destroy)
+    }
+
+    /// The state the targeted machines should be in once the command succeeds.
+    pub fn expected_state(self) -> StateClass {
+        match self {
+            Self::Up | Self::Reload | Self::Resume | Self::Provision => StateClass::Running,
+            Self::Halt => StateClass::Stopped,
+            Self::Suspend => StateClass::Suspended,
+            Self::Destroy => StateClass::NotCreated,
+        }
+    }
+}
+
+/// Provider-specific state ids grouped into what the UI shows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StateClass {
+    Running,
+    Stopped,
+    Suspended,
+    NotCreated,
+    Unknown,
+}
+
+impl StateClass {
+    /// Keep in sync with `machineState` in apps/desktop/src/lib/operations.ts.
+    pub fn of(state: &str) -> Self {
+        match state {
+            "running" => Self::Running,
+            "poweroff" | "not_running" | "shutoff" | "stopped" | "halted" | "aborted" => {
+                Self::Stopped
+            }
+            "saved" | "suspended" | "paused" => Self::Suspended,
+            "not_created" => Self::NotCreated,
+            _ => Self::Unknown,
+        }
+    }
+}
+
+/// Commands Vagrant Studio runs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum VagrantCommand {
     Version,
@@ -49,28 +117,14 @@ pub enum VagrantCommand {
     Validate,
     BoxList,
     PluginList,
-    Up {
-        machine: Option<MachineName>,
-        provider: Option<String>,
-    },
-    Halt {
-        machine: Option<MachineName>,
-    },
-    Reload {
-        machine: Option<MachineName>,
-    },
-    Suspend {
-        machine: Option<MachineName>,
-    },
-    Resume {
-        machine: Option<MachineName>,
-    },
-    Provision {
-        machine: Option<MachineName>,
-    },
-    /// Always non-interactive (`--force`): the UI asks for confirmation first.
-    Destroy {
-        machine: Option<MachineName>,
+    /// An empty `machines` list means Vagrant's default targeting, which
+    /// skips `autostart: false` machines for `up`; callers name machines.
+    /// `up` has no `--provider`: it fails for machines already created with
+    /// another provider, so `VAGRANT_DEFAULT_PROVIDER` is used instead.
+    /// `destroy` always gets `--force`: the UI asks for confirmation first.
+    Lifecycle {
+        action: LifecycleAction,
+        machines: Vec<MachineName>,
     },
 }
 
@@ -82,14 +136,6 @@ impl VagrantCommand {
     /// last one wins, so `--no-tty` would switch parseable output back to
     /// human text (verified with Vagrant 2.4.9 on Windows).
     pub fn args(&self) -> Vec<String> {
-        fn with_machine(mut args: Vec<&str>, machine: &Option<MachineName>) -> Vec<String> {
-            args.push("--no-tty");
-            let mut out: Vec<String> = args.into_iter().map(str::to_owned).collect();
-            if let Some(m) = machine {
-                out.push(m.as_str().to_owned());
-            }
-            out
-        }
         match self {
             Self::Version => vec!["--version".into()],
             Self::Status { machine } => {
@@ -102,22 +148,15 @@ impl VagrantCommand {
             Self::Validate => vec!["validate".into(), "--no-tty".into()],
             Self::BoxList => vec!["box".into(), "list".into(), "--machine-readable".into()],
             Self::PluginList => vec!["plugin".into(), "list".into(), "--machine-readable".into()],
-            Self::Up { machine, provider } => {
-                let mut args = with_machine(vec!["up"], &None);
-                if let Some(p) = provider {
-                    args.push(format!("--provider={p}"));
+            Self::Lifecycle { action, machines } => {
+                let mut args = vec![action.verb().to_owned()];
+                if *action == LifecycleAction::Destroy {
+                    args.push("--force".into());
                 }
-                if let Some(m) = machine {
-                    args.push(m.as_str().to_owned());
-                }
+                args.push("--no-tty".into());
+                args.extend(machines.iter().map(|m| m.as_str().to_owned()));
                 args
             }
-            Self::Halt { machine } => with_machine(vec!["halt"], machine),
-            Self::Reload { machine } => with_machine(vec!["reload"], machine),
-            Self::Suspend { machine } => with_machine(vec!["suspend"], machine),
-            Self::Resume { machine } => with_machine(vec!["resume"], machine),
-            Self::Provision { machine } => with_machine(vec!["provision"], machine),
-            Self::Destroy { machine } => with_machine(vec!["destroy", "--force"], machine),
         }
     }
 
@@ -128,6 +167,22 @@ impl VagrantCommand {
             Self::Version | Self::Status { .. } | Self::Validate | Self::BoxList | Self::PluginList
         )
     }
+
+    pub fn is_destructive(&self) -> bool {
+        matches!(self, Self::Lifecycle { action, .. } if action.is_destructive())
+    }
+
+    /// Whether the command may read or add boxes in the shared box store.
+    pub fn uses_boxes(&self) -> bool {
+        matches!(
+            self,
+            Self::BoxList
+                | Self::Lifecycle {
+                    action: LifecycleAction::Up,
+                    ..
+                }
+        )
+    }
 }
 
 #[cfg(test)]
@@ -136,6 +191,13 @@ mod tests {
 
     fn m(name: &str) -> Option<MachineName> {
         Some(MachineName::try_from(name.to_owned()).unwrap())
+    }
+
+    fn lifecycle(action: LifecycleAction, names: &[&str]) -> VagrantCommand {
+        VagrantCommand::Lifecycle {
+            action,
+            machines: names.iter().filter_map(|n| m(n)).collect(),
+        }
     }
 
     #[test]
@@ -158,16 +220,16 @@ mod tests {
             ["status", "--machine-readable", "db"]
         );
         assert_eq!(
-            VagrantCommand::Up {
-                machine: m("web"),
-                provider: Some("vmware_desktop".into())
-            }
-            .args(),
-            ["up", "--no-tty", "--provider=vmware_desktop", "web"]
+            lifecycle(LifecycleAction::Up, &["web", "db"]).args(),
+            ["up", "--no-tty", "web", "db"]
         );
         assert_eq!(
-            VagrantCommand::Destroy { machine: m("web") }.args(),
+            lifecycle(LifecycleAction::Destroy, &["web"]).args(),
             ["destroy", "--force", "--no-tty", "web"]
+        );
+        assert_eq!(
+            lifecycle(LifecycleAction::Halt, &[]).args(),
+            ["halt", "--no-tty"]
         );
         assert_eq!(
             VagrantCommand::BoxList.args(),
@@ -192,7 +254,32 @@ mod tests {
     fn classifies_mutating_commands() {
         assert!(!VagrantCommand::Status { machine: None }.is_mutating());
         assert!(!VagrantCommand::Validate.is_mutating());
-        assert!(VagrantCommand::Halt { machine: None }.is_mutating());
-        assert!(VagrantCommand::Destroy { machine: None }.is_mutating());
+        assert!(lifecycle(LifecycleAction::Halt, &[]).is_mutating());
+        assert!(lifecycle(LifecycleAction::Destroy, &[]).is_destructive());
+        assert!(!lifecycle(LifecycleAction::Halt, &[]).is_destructive());
+        assert!(lifecycle(LifecycleAction::Up, &[]).uses_boxes());
+        assert!(!lifecycle(LifecycleAction::Reload, &[]).uses_boxes());
+    }
+
+    #[test]
+    fn lifecycle_actions_use_vagrant_verbs_and_snake_case_json() {
+        assert_eq!(LifecycleAction::Provision.verb(), "provision");
+        assert_eq!(
+            serde_json::from_str::<LifecycleAction>("\"suspend\"").unwrap(),
+            LifecycleAction::Suspend
+        );
+    }
+
+    #[test]
+    fn classifies_provider_states() {
+        assert_eq!(StateClass::of("poweroff"), StateClass::Stopped);
+        assert_eq!(StateClass::of("not_running"), StateClass::Stopped);
+        assert_eq!(StateClass::of("saved"), StateClass::Suspended);
+        assert_eq!(StateClass::of("not_created"), StateClass::NotCreated);
+        assert_eq!(StateClass::of("host_state_unknown"), StateClass::Unknown);
+        assert_eq!(
+            LifecycleAction::Destroy.expected_state(),
+            StateClass::NotCreated
+        );
     }
 }

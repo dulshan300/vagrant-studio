@@ -5,10 +5,18 @@
 //! The final state is persisted by the backend, so history never depends on
 //! the frontend. Operations left running by a crash are marked
 //! `interrupted` on the next start ([`OperationEngine::recover`]).
+//!
+//! Operations wait in `queued` until the scheduler's locks allow them to
+//! start. After a command that changes machines, the engine runs
+//! `vagrant status` while still holding the environment lock, so the
+//! recorded state is never older than the operation's outcome.
 
+mod confirm;
 pub mod events;
+pub mod lifecycle;
 mod log;
 pub mod redact;
+mod scheduler;
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -22,13 +30,18 @@ use vagrant_studio_domain::{
 };
 use vagrant_studio_project_store::{EnvironmentStatusRecord, Store, StoreError};
 use vagrant_studio_vagrant_adapter::machine_readable::{self, MachineStatus};
-use vagrant_studio_vagrant_adapter::{Invocation, Runner, Stream, Termination, VagrantCommand};
+use vagrant_studio_vagrant_adapter::{
+    Invocation, RunResult, Runner, Stream, Termination, VagrantCommand,
+};
 
+pub use confirm::{Confirmation, ConfirmationProof};
 pub use events::{EventSink, OperationEvent};
 pub use log::{LogLine, read_log};
 
 /// Lines of stdout kept in memory for parsing (status output is small).
 const MAX_CAPTURED_LINES: usize = 20_000;
+/// Limit for the status refresh that follows a mutating command.
+const FOLLOW_UP_TIMEOUT: Duration = Duration::from_secs(180);
 
 #[derive(Debug, thiserror::Error)]
 pub enum EngineError {
@@ -39,6 +52,15 @@ pub enum EngineError {
         path: String,
         source: std::io::Error,
     },
+    /// The same command is already queued or running for the target.
+    #[error("{0}")]
+    Conflict(String),
+    /// A destructive command without a valid confirmation.
+    #[error("{0}")]
+    Confirmation(String),
+    /// The request can't be run as given (e.g. unknown machine names).
+    #[error("{0}")]
+    Invalid(String),
 }
 
 /// Everything needed to run one Vagrant command for a target.
@@ -54,6 +76,8 @@ pub struct OperationRequest {
     pub target_label: String,
     pub env: Vec<(String, String)>,
     pub timeout: Option<Duration>,
+    /// Required for destructive commands; see [`OperationEngine::confirm`].
+    pub confirmation: Option<ConfirmationProof>,
 }
 
 /// Parsed result of the last `vagrant status` for an environment.
@@ -107,7 +131,26 @@ struct Inner {
     runner: Arc<dyn Runner>,
     sink: Arc<dyn EventSink>,
     logs_dir: PathBuf,
-    running: Mutex<HashMap<OperationId, CancellationToken>>,
+    /// Queued and running operations. Entries are reserved (id `None`)
+    /// before the database row exists, so duplicate checks can't race.
+    active: Mutex<HashMap<u64, Active>>,
+    next_slot: std::sync::atomic::AtomicU64,
+    locks: scheduler::Locks,
+    confirmations: confirm::Confirmations,
+}
+
+struct Active {
+    id: Option<OperationId>,
+    environment_id: Option<EnvironmentId>,
+    command: VagrantCommand,
+    token: CancellationToken,
+}
+
+/// Output of one process run.
+struct Captured {
+    outcome: std::io::Result<RunResult>,
+    stdout: Vec<String>,
+    stderr_tail: Vec<String>,
 }
 
 impl OperationEngine {
@@ -123,9 +166,25 @@ impl OperationEngine {
                 runner,
                 sink,
                 logs_dir,
-                running: Mutex::new(HashMap::new()),
+                active: Mutex::new(HashMap::new()),
+                next_slot: Default::default(),
+                locks: Default::default(),
+                confirmations: Default::default(),
             }),
         }
+    }
+
+    /// Issues a one-time token the UI must send back with a destructive
+    /// command for exactly this target, along with the typed `phrase`.
+    pub fn confirm(
+        &self,
+        environment_id: EnvironmentId,
+        command: VagrantCommand,
+        phrase: String,
+    ) -> Confirmation {
+        self.inner
+            .confirmations
+            .issue(environment_id, command, phrase)
     }
 
     /// Marks operations left unfinished by a previous session as interrupted.
@@ -140,13 +199,14 @@ impl OperationEngine {
         Ok(n)
     }
 
-    /// Records the operation and runs it in the background. Returns the queued record.
+    /// Records the operation and runs it in the background once the
+    /// scheduler allows. Returns the queued record.
     pub async fn start(&self, req: OperationRequest) -> Result<Operation, EngineError> {
-        let (op, token) = self.prepare(&req).await?;
+        let (op, slot, token) = self.prepare(&req).await?;
         let engine = self.clone();
         let queued = op.clone();
         tokio::spawn(async move {
-            if let Err(e) = engine.execute(op, req, token).await {
+            if let Err(e) = engine.execute(op, slot, req, token).await {
                 tracing::error!(error = %e, "operation bookkeeping failed");
             }
         });
@@ -155,13 +215,21 @@ impl OperationEngine {
 
     /// Like [`start`](Self::start) but waits for the final record.
     pub async fn run(&self, req: OperationRequest) -> Result<Operation, EngineError> {
-        let (op, token) = self.prepare(&req).await?;
-        self.execute(op, req, token).await
+        let (op, slot, token) = self.prepare(&req).await?;
+        self.execute(op, slot, req, token).await
     }
 
-    /// Requests cancellation. Returns false if the operation isn't running here.
+    /// Requests cancellation of a queued or running operation. Returns false
+    /// if it isn't active here.
     pub async fn cancel(&self, id: OperationId) -> Result<bool, EngineError> {
-        let token = self.inner.running.lock().expect("lock").get(&id).cloned();
+        let token = self
+            .inner
+            .active
+            .lock()
+            .expect("lock")
+            .values()
+            .find(|a| a.id == Some(id))
+            .map(|a| a.token.clone());
         let Some(token) = token else {
             return Ok(false);
         };
@@ -201,8 +269,14 @@ impl OperationEngine {
         }
     }
 
+    /// Whether the operation is queued or running.
     pub fn is_running(&self, id: OperationId) -> bool {
-        self.inner.running.lock().expect("lock").contains_key(&id)
+        self.inner
+            .active
+            .lock()
+            .expect("lock")
+            .values()
+            .any(|a| a.id == Some(id))
     }
 
     pub async fn environment_status(
@@ -232,13 +306,72 @@ impl OperationEngine {
     async fn prepare(
         &self,
         req: &OperationRequest,
-    ) -> Result<(Operation, CancellationToken), EngineError> {
+    ) -> Result<(Operation, u64, CancellationToken), EngineError> {
+        if req.command.is_destructive() {
+            let (Some(env), Some(proof)) = (req.environment_id, &req.confirmation) else {
+                return Err(EngineError::Confirmation(
+                    "This action needs confirmation.".into(),
+                ));
+            };
+            self.inner
+                .confirmations
+                .redeem(proof, env, &req.command)
+                .map_err(|m| EngineError::Confirmation(m.into()))?;
+        }
+        let (slot, token) = self.reserve(req)?;
+        match self.insert(req).await {
+            Ok(op) => {
+                if let Some(a) = self.inner.active.lock().expect("lock").get_mut(&slot) {
+                    a.id = Some(op.id);
+                }
+                self.emit("operation.queued", Some(&op), json!({ "operation": op }));
+                Ok((op, slot, token))
+            }
+            Err(e) => {
+                self.inner.active.lock().expect("lock").remove(&slot);
+                Err(e)
+            }
+        }
+    }
+
+    /// Registers the request as active unless the same command is already
+    /// queued or running for the same environment.
+    fn reserve(&self, req: &OperationRequest) -> Result<(u64, CancellationToken), EngineError> {
+        let mut active = self.inner.active.lock().expect("lock");
+        if req.environment_id.is_some()
+            && active
+                .values()
+                .any(|a| a.environment_id == req.environment_id && a.command == req.command)
+        {
+            return Err(EngineError::Conflict(format!(
+                "`{}` is already queued or running for this environment.",
+                command_line(&req.command)
+            )));
+        }
+        let slot = self
+            .inner
+            .next_slot
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let token = CancellationToken::new();
+        active.insert(
+            slot,
+            Active {
+                id: None,
+                environment_id: req.environment_id,
+                command: req.command.clone(),
+                token: token.clone(),
+            },
+        );
+        Ok((slot, token))
+    }
+
+    async fn insert(&self, req: &OperationRequest) -> Result<Operation, EngineError> {
         std::fs::create_dir_all(&self.inner.logs_dir).map_err(|source| EngineError::Logs {
             path: self.inner.logs_dir.display().to_string(),
             source,
         })?;
         let log_template = self.inner.logs_dir.join("{id}.log");
-        let op = self
+        Ok(self
             .inner
             .store
             .insert_operation(
@@ -253,25 +386,18 @@ impl OperationEngine {
                 },
                 &log_template.display().to_string(),
             )
-            .await?;
-        let token = CancellationToken::new();
-        self.inner
-            .running
-            .lock()
-            .expect("lock")
-            .insert(op.id, token.clone());
-        self.emit("operation.queued", Some(&op), json!({ "operation": op }));
-        Ok((op, token))
+            .await?)
     }
 
     async fn execute(
         &self,
         op: Operation,
+        slot: u64,
         req: OperationRequest,
         token: CancellationToken,
     ) -> Result<Operation, EngineError> {
         let result = self.execute_inner(&op, &req, token).await;
-        self.inner.running.lock().expect("lock").remove(&op.id);
+        self.inner.active.lock().expect("lock").remove(&slot);
         result
     }
 
@@ -281,21 +407,37 @@ impl OperationEngine {
         req: &OperationRequest,
         token: CancellationToken,
     ) -> Result<Operation, EngineError> {
+        // Wait for the locks; cancelling while queued means it never starts.
+        let held = tokio::select! {
+            biased;
+            () = token.cancelled() => None,
+            held = self.inner.locks.acquire(req.environment_id, &req.command) => Some(held),
+        };
+        let Some(_held) = held else {
+            let op = self
+                .inner
+                .store
+                .finish_operation(
+                    op.id,
+                    OperationStatus::Cancelled,
+                    None,
+                    Some("Cancelled before it started."),
+                )
+                .await?;
+            self.emit("operation.cancelled", Some(&op), json!({ "operation": op }));
+            return Ok(op);
+        };
+
         let op = self.inner.store.mark_operation_running(op.id).await?;
         self.emit("operation.started", Some(&op), json!({ "operation": op }));
 
         let log_path = PathBuf::from(op.log_path.clone().unwrap_or_default());
         let mut log = log::LogWriter::create(&log_path, &op);
         let mut redactor = redact::Redactor::default();
-        let mut stdout_lines: Vec<String> = Vec::new();
-        let mut stderr_tail: Vec<String> = Vec::new();
 
-        let sink = self.inner.sink.clone();
-        let event_op = op.clone();
-        let outcome = self
-            .inner
-            .runner
-            .run(
+        let captured = self
+            .invoke(
+                &op,
                 Invocation {
                     program: req.program.clone(),
                     args: req.command.args(),
@@ -303,40 +445,15 @@ impl OperationEngine {
                     timeout: req.timeout,
                     env: req.env.clone(),
                 },
-                Box::new(|line| {
-                    let Some(text) = redactor.line(&line.text) else {
-                        return;
-                    };
-                    log.line(line.stream, &text);
-                    match line.stream {
-                        Stream::Stdout if stdout_lines.len() < MAX_CAPTURED_LINES => {
-                            stdout_lines.push(text.clone())
-                        }
-                        Stream::Stderr if !text.trim().is_empty() => {
-                            stderr_tail.push(text.clone());
-                            if stderr_tail.len() > 5 {
-                                stderr_tail.remove(0);
-                            }
-                        }
-                        _ => {}
-                    }
-                    let kind = match line.stream {
-                        Stream::Stdout => "operation.stdout",
-                        Stream::Stderr => "operation.stderr",
-                    };
-                    sink.emit(OperationEvent::new(
-                        kind,
-                        Some(&event_op),
-                        json!({ "line": text }),
-                    ));
-                }),
                 token,
+                &mut log,
+                &mut redactor,
             )
             .await;
 
-        let parsed = machine_readable::parse(&stdout_lines.join("\n"));
+        let parsed = machine_readable::parse(&captured.stdout.join("\n"));
         let vagrant_error = machine_readable::error_exit(&parsed);
-        let (status, exit_code, summary) = match &outcome {
+        let (status, exit_code, mut summary) = match &captured.outcome {
             Err(e) => (
                 OperationStatus::Failed,
                 None,
@@ -347,7 +464,7 @@ impl OperationEngine {
                     OperationStatus::Cancelled,
                     r.exit_code,
                     Some(if req.command.is_mutating() {
-                        "Cancelled. The machine may have been left part-way; refresh its status before continuing.".to_owned()
+                        "Cancelled. The machine may have been left part-way; check its state before continuing.".to_owned()
                     } else {
                         "Cancelled.".to_owned()
                     }),
@@ -368,14 +485,12 @@ impl OperationEngine {
                     r.exit_code,
                     Some(failure_summary(
                         vagrant_error.as_ref().map(|e| e.message.as_str()),
-                        &stderr_tail,
+                        &captured.stderr_tail,
                         r.exit_code,
                     )),
                 ),
             },
         };
-        log.footer(status, exit_code, summary.as_deref());
-        drop(log);
 
         if req.operation_type == OperationType::Status
             && let Some(env) = req.environment_id
@@ -384,6 +499,28 @@ impl OperationEngine {
             self.record_status(env, &op, &parsed, vagrant_error, summary.as_deref())
                 .await?;
         }
+
+        if req.command.is_mutating()
+            && let Some(env) = req.environment_id
+            && captured.outcome.is_ok()
+        {
+            let warning = self
+                .follow_up_status(env, &op, req, status, &mut log, &mut redactor)
+                .await?;
+            if let Some(warning) = warning {
+                self.emit(
+                    "operation.warning",
+                    Some(&op),
+                    json!({ "message": warning }),
+                );
+                if status == OperationStatus::Succeeded {
+                    summary = Some(warning);
+                }
+            }
+        }
+
+        log.footer(status, exit_code, summary.as_deref());
+        drop(log);
 
         let op = self
             .inner
@@ -397,6 +534,133 @@ impl OperationEngine {
         };
         self.emit(kind, Some(&op), json!({ "operation": op }));
         Ok(op)
+    }
+
+    /// Runs `vagrant status` for the whole environment after a mutating
+    /// command (whatever its outcome) and records it. Returns a warning when
+    /// the refresh fails or, after success, contradicts the expected state.
+    async fn follow_up_status(
+        &self,
+        environment_id: EnvironmentId,
+        op: &Operation,
+        req: &OperationRequest,
+        outcome: OperationStatus,
+        log: &mut log::LogWriter,
+        redactor: &mut redact::Redactor,
+    ) -> Result<Option<String>, EngineError> {
+        let status_command = VagrantCommand::Status { machine: None };
+        log.meta(&format!(
+            "refreshing machine state: {}",
+            command_line(&status_command)
+        ));
+        let captured = self
+            .invoke(
+                op,
+                Invocation {
+                    program: req.program.clone(),
+                    args: status_command.args(),
+                    working_dir: req.working_dir.clone(),
+                    timeout: Some(FOLLOW_UP_TIMEOUT),
+                    env: req.env.clone(),
+                },
+                // Not tied to the operation's token: a cancelled operation
+                // still needs its machines' state checked.
+                CancellationToken::new(),
+                log,
+                redactor,
+            )
+            .await;
+        let parsed = machine_readable::parse(&captured.stdout.join("\n"));
+        let vagrant_error = machine_readable::error_exit(&parsed);
+        let failure = match &captured.outcome {
+            Err(e) => Some(format!("could not start Vagrant: {e}")),
+            Ok(r) if r.termination == Termination::TimedOut => Some(format!(
+                "timed out after {} seconds",
+                FOLLOW_UP_TIMEOUT.as_secs()
+            )),
+            Ok(r) if r.exit_code == Some(0) => None,
+            Ok(r) => Some(failure_summary(
+                vagrant_error.as_ref().map(|e| e.message.as_str()),
+                &captured.stderr_tail,
+                r.exit_code,
+            )),
+        };
+        if captured.outcome.is_ok() {
+            self.record_status(
+                environment_id,
+                op,
+                &parsed,
+                vagrant_error,
+                failure.as_deref(),
+            )
+            .await?;
+        }
+        if let Some(failure) = failure {
+            return Ok(Some(format!(
+                "Checking machine state afterwards failed: {failure}"
+            )));
+        }
+        let VagrantCommand::Lifecycle { action, machines } = &req.command else {
+            return Ok(None);
+        };
+        if outcome != OperationStatus::Succeeded {
+            return Ok(None);
+        }
+        let observed: Vec<MachineStatusDto> = machine_readable::parse_status(&parsed)
+            .into_iter()
+            .map(Into::into)
+            .collect();
+        Ok(lifecycle::state_mismatch(*action, machines, &observed))
+    }
+
+    /// Runs one process, writing redacted output to the log and as events.
+    async fn invoke(
+        &self,
+        op: &Operation,
+        invocation: Invocation,
+        token: CancellationToken,
+        log: &mut log::LogWriter,
+        redactor: &mut redact::Redactor,
+    ) -> Captured {
+        let mut stdout: Vec<String> = Vec::new();
+        let mut stderr_tail: Vec<String> = Vec::new();
+        let sink = self.inner.sink.clone();
+        let outcome = self
+            .inner
+            .runner
+            .run(
+                invocation,
+                Box::new(|line| {
+                    let Some(text) = redactor.line(&line.text) else {
+                        return;
+                    };
+                    log.line(line.stream, &text);
+                    match line.stream {
+                        Stream::Stdout if stdout.len() < MAX_CAPTURED_LINES => {
+                            stdout.push(text.clone())
+                        }
+                        Stream::Stderr if !text.trim().is_empty() => {
+                            stderr_tail.push(text.clone());
+                            if stderr_tail.len() > 5 {
+                                stderr_tail.remove(0);
+                            }
+                        }
+                        _ => {}
+                    }
+                    let kind = match line.stream {
+                        Stream::Stdout => "operation.stdout",
+                        Stream::Stderr => "operation.stderr",
+                    };
+                    sink.emit(OperationEvent::new(kind, Some(op), json!({ "line": text })));
+                }),
+                token,
+            )
+            .await;
+        Captured {
+            outcome,
+            stdout,
+            stderr_tail,
+        }
     }
 
     async fn record_status(

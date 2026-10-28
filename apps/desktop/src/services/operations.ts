@@ -3,8 +3,11 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { hasBackend } from './app'
 import { BackendUnavailableError } from './errors'
 import type {
+  Confirmation,
+  ConfirmationProof,
   EnvironmentStatus,
   HostReadiness,
+  LifecycleAction,
   LogLine,
   Operation,
   OperationEvent,
@@ -23,6 +26,14 @@ export const operationsApi = {
   refreshStatus: (environmentId: string) =>
     call<Operation>('refresh_environment_status', { environmentId }),
   validate: (environmentId: string) => call<Operation>('validate_environment', { environmentId }),
+  runLifecycle: (
+    environmentId: string,
+    action: LifecycleAction,
+    machines: string[],
+    confirmation: ConfirmationProof | null = null,
+  ) => call<Operation>('run_lifecycle', { environmentId, action, machines, confirmation }),
+  requestConfirmation: (environmentId: string, action: LifecycleAction, machines: string[]) =>
+    call<Confirmation>('request_lifecycle_confirmation', { environmentId, action, machines }),
   environmentStatus: (environmentId: string) =>
     call<EnvironmentStatus | null>('get_environment_status', { environmentId }),
   environmentStatuses: () => call<EnvironmentStatus[]>('list_environment_statuses'),

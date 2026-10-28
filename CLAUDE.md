@@ -24,6 +24,7 @@ cargo test -p vagrant-studio-platform finds_first_match   # single crate / singl
 cargo test -p vagrant-studio-platform --target x86_64-pc-windows-gnu   # run tests as a Windows .exe via WSL interop
 VAGRANT_STUDIO_TEST_PROVIDER=vmware_desktop WSLENV=VAGRANT_STUDIO_TEST_PROVIDER \
   cargo test -p vagrant-studio-vagrant-adapter --target x86_64-pc-windows-gnu -- --include-ignored   # real Windows Vagrant
+cargo test -p vagrant-studio-operation-engine --test docker_lifecycle -- --ignored   # real lifecycle via Vagrant's docker provider (Linux)
 pnpm build:win-local   # Windows .exe from WSL → target/x86_64-pc-windows-gnu/release/vagrant-studio.exe (runs via interop)
 ```
 

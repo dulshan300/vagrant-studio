@@ -31,7 +31,14 @@ Linux. The behaviour below was checked against Vagrant 2.4.9 on Windows 11
 - **`--no-tty` is never combined with `--machine-readable`.** Both select
   Vagrant's UI and the last one wins: `status --machine-readable --no-tty`
   prints human text. `--no-tty` is used for `validate` and lifecycle commands.
-- `destroy` always gets `--force`; the confirmation happens in the UI first.
+- `destroy` always gets `--force`; the confirmation happens in the UI first
+  and is checked by the backend (one-time token, architecture.md §9).
+- Lifecycle commands always name their machines (`vagrant up --no-tty web db`):
+  without names, `up` skips `autostart: false` machines. Names are passed in
+  Vagrantfile order; Vagrant reverses it for `destroy` itself.
+- `up` gets no `--provider` flag: it fails for machines already created with
+  another provider. `VAGRANT_DEFAULT_PROVIDER` selects the provider for new
+  machines instead (Phase 4).
 - Machine names are validated (`[A-Za-z0-9._-]`, not starting with `-`), so a
   name can never be read as an option.
 

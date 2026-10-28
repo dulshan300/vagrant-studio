@@ -89,18 +89,39 @@ Vagrant, VM or WebView.
 
 ## 4. Operation scheduling
 
+Implemented in `crates/operation-engine` (`scheduler.rs`, `lifecycle.rs`,
+`confirm.rs`) in Phase 4.
+
 - Each environment has a single **write lock**. Mutating operations (`up`,
   `halt`, `reload`, `suspend`, `resume`, `provision`, `destroy`) take it, so
-  at most one runs per environment and further requests queue or are
-  refused with a conflict error that the UI shows.
-- Read-only operations (`status`) may run concurrently with each other but
-  not alongside a mutating operation on the same environment. The scheduler
-  re-runs `status` itself after each mutating operation finishes.
-- Box operations (`box add/remove/update`) take a global box lock, because
-  Vagrant's box store is shared across environments.
+  at most one runs per environment. Further requests wait as `queued` and
+  start in request order (the locks are fair). A request identical to one
+  already queued or running for the environment (same command and machines)
+  is refused with a `conflict` error that the UI shows.
+- Read-only operations (`status`, `validate`) share the lock: they run
+  concurrently with each other but not alongside a mutating operation on the
+  same environment. Different environments never block each other.
+- After each mutating operation, whatever its outcome (including cancelled),
+  the engine runs `vagrant status` for the whole environment while still
+  holding the write lock. It is logged and streamed as part of the same
+  operation, and the operation finishes only after it.
 - An operation is reported as `succeeded` only after the process exits with
-  code 0 **and** the follow-up status refresh has finished. A refresh that
-  contradicts the expected state produces a warning, not a silent success.
+  code 0 **and** the follow-up status refresh has finished. If the refresh
+  fails, or reports a targeted machine in a known state other than the
+  expected one (`up`/`reload`/`resume`/`provision` → running, `halt` →
+  stopped, `suspend` → suspended, `destroy` → not created), the operation
+  still succeeds but carries the warning in `errorSummary` and emits
+  `operation.warning`. Unknown provider states are not judged.
+- **Targeting:** machines are always named explicitly, checked against the
+  last `vagrant status` and passed in Vagrantfile order. "All machines" is
+  every machine Vagrant reported, because a bare `vagrant up` skips
+  `autostart: false` machines. Lifecycle actions are refused until a
+  successful status check exists.
+- Box operations (`box add/remove/update`, Phase 6) will take a global box
+  lock for writing; `up` (which may download a box) and `box list` take it
+  for reading. The environment lock is always taken first.
+- Cancelling a queued operation removes it before it starts
+  (`Cancelled before it started.`); Vagrant is never run for it.
 
 ### Operation state machine
 
@@ -185,7 +206,12 @@ Vagrantfiles are Ruby. The app never claims to fully parse them.
   argv.
 - Destructive actions (`destroy`, `box remove`, deleting project files)
   require a typed confirmation in the UI **and** a confirmation token
-  checked by the backend command.
+  checked by the backend command. For `destroy`, the backend issues a
+  one-time token (10 minutes) bound to the environment and the exact machine
+  list, plus the phrase to type (the machine name, or the environment name
+  for several machines). The engine refuses a destructive command unless
+  the token matches and the typed phrase is correct; any attempt uses the
+  token up.
 - Log output passes through a redaction filter for common secret patterns
   (private key blocks, `password=`, tokens in URLs, values of environment
   variables whose names look like secrets) before it reaches disk or events.

@@ -65,3 +65,4 @@ virtualization or network settings itself.
 |---|---|---|---|---|
 | 2026-10-28 | Windows 11 x64 | 2.4.9 | VMware Desktop (Workstation 25.0.0, plugin 3.0.5) | **Read-only only:** version, plugin list, `status` of a multi-machine environment (not created), validate. Readiness detects a stopped VMware Utility. Lifecycle not yet tested (Phase 4). |
 | 2026-10-28 | Windows 11 x64 | 2.4.9 | VirtualBox 7.1.18 | Read-only only: `status` (not created), box list, validate. Lifecycle not tested. |
+| 2026-10-28 | WSL2 Ubuntu 24.04 (test harness) | 2.4.9 (Linux) | docker (Docker 29.7.2) | **Lifecycle through the engine:** status, `up` of named machines (including an `autostart: false` one), halt, reload, destroy with confirmation; follow-up status after each. `suspend` is refused by the provider ("not supported with the Docker provider"). Automated: `docker_lifecycle` test (opt-in). |

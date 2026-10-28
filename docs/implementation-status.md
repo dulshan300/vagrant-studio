@@ -3,7 +3,9 @@
 _Last updated: 2026-10-28_
 
 ## Current phase
-**Phase 3 — Vagrant CLI integration: complete (Windows).** Next: Phase 4, multi-machine lifecycle.
+**Phase 4 — Multi-machine lifecycle: implemented, automated tests pass; awaiting the
+manual lifecycle walkthrough on Windows** (`docs/testing/manual-lifecycle.md`, VMware
+Desktop then VirtualBox). Phase 4 is complete only after that walkthrough.
 
 ## Completed phases
 - **Phase 0 — Inspection and planning** (2026-10-28): architecture, roadmap,
@@ -18,6 +20,17 @@ _Last updated: 2026-10-28_
   engine, readiness checks, Operations/Providers/Machines pages, provider selection
   (VirtualBox, VMware Desktop). Tests pass on Linux and as Windows binaries, including
   opt-in real Vagrant 2.4.9 + VMware Desktop. User walkthrough on Windows passed.
+
+## Phase 4 results (2026-10-28)
+| Check | Result |
+|---|---|
+| Rust tests, Linux | Pass: domain 15, platform 12, project-store 18, project-service 20, vagrant-adapter 26, operation-engine 24 (scheduler, queueing, conflicts, cancel while queued, follow-up status, expected-state warnings, confirmation tokens) |
+| Same crates (domain, vagrant-adapter, operation-engine) as Windows binaries | Pass |
+| Opt-in docker lifecycle test (Linux Vagrant 2.4.9 + Docker 29.7.2, WSL2) | **Pass** (71 s): status, `up` of named machines incl. `autostart: false`, halt, reload, suspend refused by provider, confirmed destroy; no containers left |
+| clippy `-D warnings` / rustfmt | Pass |
+| Frontend lint, format, typecheck, tests | Pass, 37 tests |
+| Manual lifecycle on Windows (VMware Desktop, VirtualBox) | **Not yet run**: needs the user (plan in `docs/testing/manual-lifecycle.md`) |
+| Windows CI for Phases 3–4 | Not yet pushed |
 
 ## Phase 3 results (2026-10-28)
 | Check | Result |
@@ -101,7 +114,9 @@ use MSVC in CI. Windows has no local MSVC or Rust install.
 None recorded.
 
 ## Next recommended task
-1. Push and confirm the Windows CI run for Phase 3.
-2. Phase 4: machine lifecycle (up/halt/reload/suspend/resume/provision/destroy), per machine and per environment; per-environment operation lock and conflict handling; destructive confirmations; status refresh after each operation; real lifecycle verification with VMware Desktop on Windows.
-3. Before release: install the CI NSIS installer by hand on Windows 11.
-4. Later: re-enable the Ubuntu/Fedora CI jobs.
+1. User walkthrough of `docs/testing/manual-lifecycle.md` on Windows with VMware
+   Desktop, then VirtualBox; record results in provider-capabilities.md and here.
+2. Push and confirm the Windows CI run for Phases 3–4.
+3. Phase 5: Vagrantfile editor.
+4. Before release: install the CI NSIS installer by hand on Windows 11.
+5. Later: re-enable the Ubuntu/Fedora CI jobs.

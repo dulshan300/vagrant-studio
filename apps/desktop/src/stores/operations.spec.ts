@@ -64,4 +64,23 @@ describe('operations store events', () => {
     store.handle({ ...base, type: 'operation.cancel_requested', payload: {} })
     expect(store.operations[0]!.status).toBe('cancel_requested')
   })
+
+  it('lists active operations per environment, oldest first', () => {
+    const store = useOperationsStore()
+    const base = { timestamp: '', environmentId: 'env1', machineName: null }
+    for (const [id, env, status] of [
+      ['a', 'env1', 'running'],
+      ['b', 'env2', 'queued'],
+      ['c', 'env1', 'queued'],
+      ['d', 'env1', 'succeeded'],
+    ] as const) {
+      store.handle({
+        ...base,
+        type: 'operation.queued',
+        operationId: id,
+        payload: { operation: { ...op(status), id, environmentId: env } },
+      })
+    }
+    expect(store.activeFor('env1').map((o) => o.id)).toEqual(['a', 'c'])
+  })
 })

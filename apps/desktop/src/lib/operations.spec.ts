@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { displayLine, duration, isActive, machineState, operationLabel } from './operations'
+import {
+  actionsFor,
+  displayLine,
+  duration,
+  isActive,
+  LIFECYCLE_ACTIONS,
+  machineState,
+  operationLabel,
+  primaryAction,
+  targetMachines,
+} from './operations'
 
 describe('machineState', () => {
   it('maps provider states and keeps unknown ones unknown', () => {
@@ -51,5 +61,43 @@ describe('operation helpers', () => {
     expect(isActive({ status: 'interrupted' })).toBe(false)
     expect(operationLabel('up')).toBe('Start')
     expect(operationLabel('snapshot_save')).toBe('snapshot_save')
+  })
+})
+
+describe('lifecycle actions', () => {
+  it('offers actions that fit the observed state', () => {
+    expect(actionsFor('notCreated')).toEqual(['up'])
+    expect(actionsFor('running')).toContain('halt')
+    expect(actionsFor('running')).not.toContain('up')
+    expect(actionsFor('suspended')).toContain('resume')
+    expect(actionsFor('stopped')).toContain('destroy')
+  })
+
+  it('offers everything when the state is unknown', () => {
+    expect(actionsFor('unknown')).toEqual(LIFECYCLE_ACTIONS)
+  })
+
+  it('picks a one-click action per state', () => {
+    expect(primaryAction('running')).toBe('halt')
+    expect(primaryAction('stopped')).toBe('up')
+    expect(primaryAction('suspended')).toBe('resume')
+    expect(primaryAction('unknown')).toBeNull()
+  })
+})
+
+describe('targetMachines', () => {
+  it('reads machine names from lifecycle command lines', () => {
+    expect(
+      targetMachines({
+        operationType: 'destroy',
+        commandLine: 'vagrant destroy --force --no-tty web db',
+      }),
+    ).toEqual(['web', 'db'])
+    expect(targetMachines({ operationType: 'halt', commandLine: 'vagrant halt --no-tty' })).toEqual(
+      [],
+    )
+    expect(
+      targetMachines({ operationType: 'status', commandLine: 'vagrant status --machine-readable' }),
+    ).toEqual([])
   })
 })

@@ -1,0 +1,193 @@
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue'
+import { CircleAlert, LoaderCircle } from '@lucide/vue'
+import { Button } from '@/components/ui/button'
+import StatusBadge from '@/components/status/StatusBadge.vue'
+import DestroyMachinesDialog from './DestroyMachinesDialog.vue'
+import { ACTION_META } from './actions'
+import {
+  actionsFor,
+  LIFECYCLE_ACTIONS,
+  machineState,
+  operationLabel,
+  primaryAction,
+  targetMachines,
+} from '@/lib/operations'
+import { relativeTime } from '@/lib/projects'
+import { errorMessage } from '@/services/errors'
+import { useOperationsStore } from '@/stores/operations'
+import type { EnvironmentStatus, LifecycleAction, Operation } from '@/types/operations'
+import type { Environment } from '@/types/projects'
+
+const props = defineProps<{ environment: Environment; status: EnvironmentStatus }>()
+const operations = useOperationsStore()
+
+const selected = ref<string[]>([])
+const actionError = ref<string | null>(null)
+const destroyOpen = ref(false)
+const destroyTargets = ref<string[]>([])
+
+const machines = computed(() =>
+  props.status.machines.map((m) => ({ ...m, ui: machineState(m.state) })),
+)
+// Drop selections for machines Vagrant no longer reports.
+watch(machines, (list) => {
+  selected.value = selected.value.filter((n) => list.some((m) => m.name === n))
+})
+
+const allSelected = computed(
+  () => machines.value.length > 0 && selected.value.length === machines.value.length,
+)
+/** The bar acts on the selection, or on every machine when nothing is selected. */
+const targets = computed(() =>
+  selected.value.length ? selected.value : machines.value.map((m) => m.name),
+)
+const scopeLabel = computed(() => {
+  if (selected.value.length) return `${selected.value.length} selected`
+  return machines.value.length === 1 ? '1 machine' : `All ${machines.value.length} machines`
+})
+
+const pending = computed(() => operations.activeFor(props.environment.id))
+
+/** Operations queued or running for a machine (named alone or with others). */
+function pendingFor(name: string): Operation[] {
+  return pending.value.filter((op) => targetMachines(op).includes(name))
+}
+
+function allowed(action: LifecycleAction): boolean {
+  return machines.value
+    .filter((m) => targets.value.includes(m.name))
+    .some((m) => actionsFor(m.ui).includes(action))
+}
+
+function toggleAll() {
+  selected.value = allSelected.value ? [] : machines.value.map((m) => m.name)
+}
+
+async function run(action: LifecycleAction, names: string[]) {
+  actionError.value = null
+  if (action === 'destroy') {
+    destroyTargets.value = [...names]
+    destroyOpen.value = true
+    return
+  }
+  try {
+    await operations.runLifecycle(props.environment.id, action, names)
+  } catch (e) {
+    actionError.value = errorMessage(e)
+  }
+}
+</script>
+
+<template>
+  <div class="mt-3 rounded-md border">
+    <div
+      class="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-1.5 text-[11px] text-muted"
+    >
+      <span>Reported by Vagrant {{ relativeTime(status.observedAt) }}</span>
+      <span v-if="pending.length" class="flex items-center gap-1.5">
+        <LoaderCircle class="size-3 animate-spin" aria-hidden="true" />
+        <template v-for="(op, i) in pending" :key="op.id">
+          <span v-if="i > 0">·</span>
+          <button
+            type="button"
+            class="hover:text-foreground hover:underline"
+            @click="operations.open(op.id)"
+          >
+            {{ operationLabel(op.operationType) }}
+            {{ op.status === 'queued' ? '(queued)' : '' }}
+          </button>
+        </template>
+      </span>
+    </div>
+
+    <p v-if="status.error" class="flex items-start gap-2 px-3 py-2 text-xs text-status-failed">
+      <CircleAlert class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+      <span class="whitespace-pre-wrap">{{ status.error.message }}</span>
+    </p>
+    <p v-else-if="!machines.length" class="px-3 py-2 text-xs text-muted">
+      Vagrant reported no machines.
+    </p>
+    <template v-else>
+      <div
+        class="flex flex-wrap items-center gap-1 border-b bg-surface-muted/50 px-3 py-1.5"
+        role="toolbar"
+        :aria-label="`Actions for ${scopeLabel.toLowerCase()}`"
+      >
+        <label class="mr-2 flex items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            :checked="allSelected"
+            :indeterminate="selected.length > 0 && !allSelected"
+            aria-label="Select all machines"
+            @change="toggleAll"
+          />
+          <span class="text-muted">{{ scopeLabel }}</span>
+        </label>
+        <Button
+          v-for="action in LIFECYCLE_ACTIONS"
+          :key="action"
+          variant="ghost"
+          size="sm"
+          :class="action === 'destroy' ? 'h-7 px-2 text-status-failed' : 'h-7 px-2'"
+          :disabled="!allowed(action)"
+          :title="ACTION_META[action].hint"
+          @click="run(action, targets)"
+        >
+          <component :is="ACTION_META[action].icon" aria-hidden="true" />
+          {{ ACTION_META[action].label }}
+        </Button>
+      </div>
+      <ul class="divide-y">
+        <li
+          v-for="m in machines"
+          :key="m.name"
+          class="flex items-center justify-between gap-3 px-3 py-2"
+          :title="m.stateLong ?? undefined"
+        >
+          <label class="flex min-w-0 items-center gap-2">
+            <input
+              v-model="selected"
+              type="checkbox"
+              :value="m.name"
+              :aria-label="`Select ${m.name}`"
+            />
+            <span class="truncate font-mono text-xs">{{ m.name }}</span>
+          </label>
+          <span class="flex items-center gap-2">
+            <span
+              v-if="pendingFor(m.name).length"
+              class="flex items-center gap-1 text-[11px] text-muted"
+            >
+              <LoaderCircle class="size-3 animate-spin" aria-hidden="true" />
+              {{ operationLabel(pendingFor(m.name)[0]!.operationType) }}
+            </span>
+            <span class="text-[11px] text-muted">{{ m.provider }}</span>
+            <StatusBadge :state="m.ui" />
+            <Button
+              v-if="primaryAction(m.ui)"
+              variant="ghost"
+              size="icon"
+              class="size-7"
+              :title="ACTION_META[primaryAction(m.ui)!].hint"
+              :aria-label="`${ACTION_META[primaryAction(m.ui)!].label} ${m.name}`"
+              @click="run(primaryAction(m.ui)!, [m.name])"
+            >
+              <component :is="ACTION_META[primaryAction(m.ui)!].icon" />
+            </Button>
+          </span>
+        </li>
+      </ul>
+    </template>
+    <p v-if="actionError" class="border-t px-3 py-2 text-xs text-status-failed" role="alert">
+      {{ actionError }}
+    </p>
+
+    <DestroyMachinesDialog
+      v-model:open="destroyOpen"
+      :environment-id="environment.id"
+      :environment-name="environment.name"
+      :machines="destroyTargets"
+    />
+  </div>
+</template>

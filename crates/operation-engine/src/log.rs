@@ -41,6 +41,11 @@ impl LogWriter {
         self.raw(&format!("{prefix} {text}"));
     }
 
+    /// A note from Vagrant Studio between command outputs.
+    pub(crate) fn meta(&mut self, text: &str) {
+        self.raw(&format!("# {text}"));
+    }
+
     pub(crate) fn footer(
         &mut self,
         status: OperationStatus,
