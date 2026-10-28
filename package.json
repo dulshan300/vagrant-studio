@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "pnpm --filter @vagrant-studio/desktop tauri dev",
     "build": "pnpm --filter @vagrant-studio/desktop tauri build",
+    "build:win-local": "pnpm --filter @vagrant-studio/desktop build && cargo build -p vagrant-studio --release --target x86_64-pc-windows-gnu --features tauri/custom-protocol",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",

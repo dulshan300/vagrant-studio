@@ -22,7 +22,10 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 cargo test -p vagrant-studio-platform finds_first_match   # single crate / single test
 cargo test -p vagrant-studio-platform --target x86_64-pc-windows-gnu   # run tests as a Windows .exe via WSL interop
+pnpm build:win-local   # Windows .exe from WSL → target/x86_64-pc-windows-gnu/release/vagrant-studio.exe (runs via interop)
 ```
+
+A plain `cargo build` of the app crate produces a *dev* binary that loads `devUrl` (localhost:1420). Standalone builds need `--features tauri/custom-protocol`, which `tauri build` and `build:win-local` add.
 
 CI currently builds **Windows only** (MSVC + NSIS); the Ubuntu and Fedora jobs are commented out in `.github/workflows/ci.yml` until Linux work resumes. Path and process code must also pass on Windows, so run the windows-gnu test command above before pushing.
 

@@ -59,7 +59,8 @@ _Last updated: 2026-10-28_
 WSL has MinGW-w64 and the `x86_64-pc-windows-gnu` Rust target, and Windows
 binaries run through WSL interop:
 `cargo test -p vagrant-studio-platform --target x86_64-pc-windows-gnu` runs the
-tests natively on Windows. This is a GNU-toolchain check only; release builds
+tests natively on Windows, and `pnpm build:win-local` builds a standalone
+Windows `.exe` with the frontend embedded. This is a GNU-toolchain check only; release builds
 use MSVC in CI. Windows has no local MSVC or Rust install.
 
 ## Known bugs
