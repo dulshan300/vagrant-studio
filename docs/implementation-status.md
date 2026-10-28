@@ -1,11 +1,11 @@
 # Implementation Status
 
-_Last updated: 2026-10-28_
+_Last updated: 2026-10-29_
 
 ## Current phase
-**Phase 5 — Vagrantfile editor: implemented, automated checks pass (2026-10-28).
-Waiting for the user's Windows walkthrough** (`docs/testing/manual-vagrantfile-editor.md`)
-before it is marked complete. Design: `docs/vagrantfile-editor.md`.
+**Phase 5 — Vagrantfile editor: complete (Windows), walkthrough passed by the user
+2026-10-29.** Design: `docs/vagrantfile-editor.md`. Next: Phase 6, boxes, providers,
+networking and provisioning.
 
 ## Completed phases
 - **Phase 0 — Inspection and planning** (2026-10-28): architecture, roadmap,
@@ -26,6 +26,11 @@ before it is marked complete. Design: `docs/vagrantfile-editor.md`.
   and the opt-in docker lifecycle test pass. Real lifecycle used by the user with VMware
   Desktop on Windows; the user marked the phase done without itemized step results.
   VirtualBox lifecycle not reported.
+- **Phase 5 — Vagrantfile editor** (2026-10-29, Windows): `crates/config-model`, visual
+  forms and raw CodeMirror editor, diff before every save, revision check, backups in app
+  data, atomic save under the environment lock. Automated tests pass on Linux and as
+  Windows binaries; 14 generated files pass `vagrant validate`; user walkthrough of
+  `docs/testing/manual-vagrantfile-editor.md` passed with no issues.
 
 ## Phase 5 results (2026-10-28)
 | Check | Result |
@@ -36,7 +41,7 @@ before it is marked complete. Design: `docs/vagrantfile-editor.md`.
 | Inline scripts in generated files evaluated by Vagrant's embedded Ruby | Equal to the model (incl. `#{`, backslash continuation, indentation, CRLF file) |
 | clippy `-D warnings` / rustfmt | Pass |
 | Frontend lint, format, typecheck, tests, production build | Pass, 52 tests (8 new: visual editor, page flow incl. leave guard) |
-| Manual walkthrough on Windows | **Pending** |
+| Manual walkthrough on Windows (`docs/testing/manual-vagrantfile-editor.md`) | **Pass**: user, 2026-10-29, no issues |
 | Windows CI for Phases 3–5 | Not yet pushed |
 
 New dependencies: `@codemirror/{view 6.43.14, state 6.7.6, commands 6.11.1, search 6.7.2,
@@ -141,11 +146,9 @@ Vagrant prints guest output to stdout; failure summaries of human-output command
 include the last output lines.
 
 ## Next recommended task
-1. User walkthrough of `docs/testing/manual-vagrantfile-editor.md` on Windows
-   (`pnpm build:win-local`); then mark Phase 5 complete.
-2. Push and confirm the Windows CI run for Phases 3–5.
-3. Phase 6: boxes, provider registry, networking and provisioning management
+1. Push and confirm the Windows CI run for Phases 3–5.
+2. Phase 6: boxes, provider registry, networking and provisioning management
    (extends the visual subset: public networks, more provider options).
-4. Optional: VirtualBox lifecycle run of `docs/testing/manual-lifecycle.md` on Windows.
-5. Before release: install the CI NSIS installer by hand on Windows 11.
-6. Later: re-enable the Ubuntu/Fedora CI jobs.
+3. Optional: VirtualBox lifecycle run of `docs/testing/manual-lifecycle.md` on Windows.
+4. Before release: install the CI NSIS installer by hand on Windows 11.
+5. Later: re-enable the Ubuntu/Fedora CI jobs.
