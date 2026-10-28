@@ -69,6 +69,6 @@ use MSVC in CI. Windows has no local MSVC or Rust install.
 None recorded.
 
 ## Next recommended task
-1. Push to a GitHub repository so CI runs on all three platforms; record the
-   results here.
 1. Start Phase 2 with `crates/domain` and `crates/project-store` (SQLite migrations).
+2. Install the CI NSIS installer by hand on Windows 11 (the MSVC build) at some point before release.
+3. Later: re-enable the Ubuntu/Fedora CI jobs.
