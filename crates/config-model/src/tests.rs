@@ -32,6 +32,7 @@ Vagrant.configure("2") do |config|
     db.vm.network "forwarded_port",
       guest: 53, host: 5353, protocol: "udp"
     db.vm.provision "shell", path: "scripts/db.sh", run: "always", privileged: false
+    db.vm.provision "seed data", type: :shell, inline: "echo seed", run: "never"
   end
 end
 "#;
@@ -80,6 +81,7 @@ fn multi_model() -> VagrantConfig {
                         },
                     ],
                     provisioners: vec![ShellProvisioner {
+                        name: None,
                         source: ShellSource::Inline {
                             script: "      apt-get update -y\n".into(),
                         },
@@ -106,13 +108,24 @@ fn multi_model() -> VagrantConfig {
                         host_ip: None,
                         protocol: Some(Protocol::Udp),
                     }],
-                    provisioners: vec![ShellProvisioner {
-                        source: ShellSource::Path {
-                            path: "scripts/db.sh".into(),
+                    provisioners: vec![
+                        ShellProvisioner {
+                            name: None,
+                            source: ShellSource::Path {
+                                path: "scripts/db.sh".into(),
+                            },
+                            run: Some(ProvisionRun::Always),
+                            privileged: Some(false),
                         },
-                        run: Some(ProvisionRun::Always),
-                        privileged: Some(false),
-                    }],
+                        ShellProvisioner {
+                            name: Some("seed data".into()),
+                            source: ShellSource::Inline {
+                                script: "echo seed".into(),
+                            },
+                            run: Some(ProvisionRun::Never),
+                            privileged: None,
+                        },
+                    ],
                     ..Default::default()
                 },
             },
@@ -158,6 +171,7 @@ fn single_machine_layout() {
                 memory_mb: Some(2048),
             }],
             provisioners: vec![ShellProvisioner {
+                name: None,
                 source: ShellSource::Inline {
                     script: "apt-get update -y\napt-get install -y git\n".into(),
                 },
@@ -211,6 +225,7 @@ fn tricky_scripts_round_trip_exactly() {
             defaults: MachineSettings {
                 box_name: Some("b".into()),
                 provisioners: vec![ShellProvisioner {
+                    name: None,
                     source: ShellSource::Inline {
                         script: script.into(),
                     },
@@ -478,4 +493,91 @@ fn model_json_uses_camel_case() {
     assert_eq!(web["provisioners"][0]["source"]["kind"], "inline");
     let back: VagrantConfig = serde_json::from_value(json).unwrap();
     assert_eq!(back, multi_model());
+}
+
+#[test]
+fn named_provisioners_generate_with_type() {
+    let model = multi_model();
+    let text = generate(&model, LineEnding::Lf).unwrap();
+    assert!(
+        text.contains("    db.vm.provision \"seed data\", type: \"shell\", inline: \"echo seed\", run: \"never\"\n"),
+        "{text}"
+    );
+    assert_eq!(analyze(&text).model, Some(model));
+
+    let typed_string = "Vagrant.configure(\"2\") do |config|\n  config.vm.box = \"x\"\n  config.vm.provision \"a\", type: \"shell\", inline: \"echo\"\nend\n";
+    let typed_symbol = typed_string.replace("type: \"shell\"", "type: :shell");
+    let a = analyze(typed_string).model.unwrap();
+    assert_eq!(a.defaults.provisioners[0].name.as_deref(), Some("a"));
+    assert_eq!(analyze(&typed_symbol).model, Some(a));
+
+    let other = typed_string.replace("type: \"shell\"", "type: \"file\"");
+    let u = analyze(&other).unsupported.unwrap();
+    assert!(u.message.contains("`file` provisioners"), "{u:?}");
+}
+
+#[test]
+fn provisioner_names_must_be_selectable_and_distinct() {
+    let named = |name: &str| ShellProvisioner {
+        name: Some(name.into()),
+        source: ShellSource::Inline {
+            script: "echo\n".into(),
+        },
+        run: None,
+        privileged: None,
+    };
+    let mut m = multi_model();
+    m.defaults.provisioners = vec![named("base"), named("a,b"), named("-x"), named(" pad")];
+    m.machines[0].settings.provisioners = vec![named("app"), named("app"), named("base")];
+    let paths: Vec<String> = validate(&m).into_iter().map(|e| e.path).collect();
+    assert_eq!(
+        paths,
+        vec![
+            "defaults.provisioners.1.name",
+            "defaults.provisioners.2.name",
+            "defaults.provisioners.3.name",
+            "machines.0.settings.provisioners.1.name",
+            "machines.0.settings.provisioners.2.name",
+        ]
+    );
+    for ok in ["setup", "seed data", "ünï.cödé_2"] {
+        assert!(valid_provisioner_name(ok), "{ok}");
+    }
+}
+
+#[test]
+fn machines_run_shared_provisioners_first() {
+    let mut m = multi_model();
+    m.defaults.provisioners.push(ShellProvisioner {
+        name: Some("base".into()),
+        source: ShellSource::Inline {
+            script: "echo\n".into(),
+        },
+        run: None,
+        privileged: None,
+    });
+    let by_machine = m.provisioners_by_machine();
+    let db: Vec<_> = by_machine[1]
+        .provisioners
+        .iter()
+        .map(|p| (p.provisioner.name.as_deref(), p.shared))
+        .collect();
+    assert_eq!(by_machine[1].machine, "db");
+    assert_eq!(
+        db,
+        [
+            (Some("base"), true),
+            (None, false),
+            (Some("seed data"), false)
+        ]
+    );
+    let json = serde_json::to_value(&by_machine[1].provisioners[2]).unwrap();
+    assert_eq!(json["name"], "seed data");
+    assert_eq!(json["run"], "never");
+    assert_eq!(json["shared"], false);
+
+    m.machines.clear();
+    let single = m.provisioners_by_machine();
+    assert_eq!(single[0].machine, "default");
+    assert_eq!(single[0].provisioners.len(), 1);
 }

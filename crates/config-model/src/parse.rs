@@ -434,15 +434,31 @@ impl Parser<'_> {
     }
 
     fn provision(&mut self, settings: &mut MachineSettings) -> Result<(), Unsupported> {
-        let kind = self.string("the provisioner type")?;
+        let first = self.string("the provisioner type")?;
+        let args = self.args()?;
+        // With `type:`, the first argument is the provisioner's name.
+        let (name, kind) = match args.iter().find(|a| a.key == "type") {
+            Some(Arg {
+                value: Value::Str(t) | Value::Sym(t),
+                ..
+            }) => (Some(first), t.clone()),
+            Some(a) => {
+                return Err(Unsupported::new(
+                    a.line,
+                    "the provisioner `type:` must be a plain string",
+                ));
+            }
+            None => (None, first),
+        };
         if kind != "shell" {
             return Err(self.unsupported_prev(format!(
                 "`{kind}` provisioners aren't supported by the visual editor yet"
             )));
         }
         let (mut source, mut run, mut privileged) = (None, None, None);
-        for a in self.args()? {
+        for a in args {
             match (a.key.as_str(), a.value) {
+                ("type", _) => {}
                 ("inline", Value::Str(script)) if source.is_none() => {
                     source = Some(ShellSource::Inline { script })
                 }
@@ -462,6 +478,7 @@ impl Parser<'_> {
             return Err(self.unsupported_prev("a shell provisioner needs `inline:` or `path:`"));
         };
         settings.provisioners.push(ShellProvisioner {
+            name,
             source,
             run,
             privileged,

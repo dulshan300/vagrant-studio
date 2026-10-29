@@ -4,7 +4,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, Runtime, State};
 use vagrant_studio_domain::{EnvironmentId, Operation, OperationId, OperationType};
 use vagrant_studio_operation_engine::lifecycle::{
-    confirmation_phrase, operation_type, order_targets,
+    check_provisioning, confirmation_phrase, operation_type, order_targets,
 };
 use vagrant_studio_operation_engine::{
     Confirmation, ConfirmationProof, EnvironmentStatus, EventSink, LogLine, OperationEngine,
@@ -14,7 +14,7 @@ use vagrant_studio_platform::SystemPlatform;
 use vagrant_studio_project_service::ProjectService;
 use vagrant_studio_provider_registry::{HostReadiness, Registry, SystemProbe};
 use vagrant_studio_vagrant_adapter::{
-    LifecycleAction, MachineName, ProcessRunner, VagrantCommand, locate,
+    LifecycleAction, MachineName, ProcessRunner, Provisioning, VagrantCommand, locate,
 };
 
 use super::error::{CommandError, CommandResult};
@@ -173,7 +173,8 @@ async fn lifecycle_targets(
 
 /// Runs `up`, `halt`, `reload`, `suspend`, `resume`, `provision` or `destroy`
 /// for the named machines. `destroy` needs a confirmation from
-/// [`request_lifecycle_confirmation`].
+/// [`request_lifecycle_confirmation`]. `provisioning` chooses which
+/// provisioners `up`, `reload` and `provision` run.
 #[tauri::command]
 pub async fn run_lifecycle(
     projects: State<'_, ProjectService>,
@@ -181,9 +182,18 @@ pub async fn run_lifecycle(
     environment_id: EnvironmentId,
     action: LifecycleAction,
     machines: Vec<String>,
+    provisioning: Option<Provisioning>,
     confirmation: Option<ConfirmationProof>,
 ) -> CommandResult<Operation> {
+    let provisioning = check_provisioning(action, provisioning.unwrap_or_default())?;
     let targets = lifecycle_targets(&engine, environment_id, &machines).await?;
+    super::provisioning::check_provisioner_names(
+        &projects,
+        environment_id,
+        &targets,
+        &provisioning,
+    )
+    .await?;
     start_environment_operation(
         &projects,
         &engine,
@@ -193,6 +203,7 @@ pub async fn run_lifecycle(
             command: VagrantCommand::Lifecycle {
                 action,
                 machines: targets.clone(),
+                provisioning,
             },
             machines: targets,
             timeout: LIFECYCLE_TIMEOUT,
@@ -225,6 +236,7 @@ pub async fn request_lifecycle_confirmation(
         VagrantCommand::Lifecycle {
             action,
             machines: targets,
+            provisioning: Provisioning::Default,
         },
         phrase,
     ))

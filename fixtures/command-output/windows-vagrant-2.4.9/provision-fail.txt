@@ -1,0 +1,4 @@
+==> web: Running provisioner: fail (shell)...
+    web: Running: inline script
+    web: about to fail
+    web: something broke

@@ -200,6 +200,10 @@ fn settings(w: &mut Writer, d: usize, v: &str, s: &MachineSettings) {
     }
     for p in &s.provisioners {
         w.group();
+        let head = match &p.name {
+            Some(name) => format!("{v}.vm.provision {}, type: \"shell\"", ruby_string(name)),
+            None => format!("{v}.vm.provision \"shell\""),
+        };
         let mut opts = String::new();
         if let Some(run) = p.run {
             opts.push_str(&format!(", run: \"{}\"", run.as_str()));
@@ -208,30 +212,17 @@ fn settings(w: &mut Writer, d: usize, v: &str, s: &MachineSettings) {
             opts.push_str(&format!(", privileged: {privileged}"));
         }
         match &p.source {
-            ShellSource::Path { path } => w.line(
-                d,
-                &format!(
-                    "{v}.vm.provision \"shell\", path: {}{opts}",
-                    ruby_string(path)
-                ),
-            ),
+            ShellSource::Path { path } => {
+                w.line(d, &format!("{head}, path: {}{opts}", ruby_string(path)))
+            }
             ShellSource::Inline { script } => match heredoc(script, &"  ".repeat(d)) {
                 Some((start, lines)) => {
-                    w.line(
-                        d,
-                        &format!("{v}.vm.provision \"shell\", inline: {start}{opts}"),
-                    );
+                    w.line(d, &format!("{head}, inline: {start}{opts}"));
                     for l in lines {
                         w.raw(&l);
                     }
                 }
-                None => w.line(
-                    d,
-                    &format!(
-                        "{v}.vm.provision \"shell\", inline: {}{opts}",
-                        ruby_string(script)
-                    ),
-                ),
+                None => w.line(d, &format!("{head}, inline: {}{opts}", ruby_string(script))),
             },
         }
     }

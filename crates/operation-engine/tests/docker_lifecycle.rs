@@ -21,7 +21,7 @@ use vagrant_studio_operation_engine::{
 use vagrant_studio_platform::SystemPlatform;
 use vagrant_studio_project_store::Store;
 use vagrant_studio_vagrant_adapter::{
-    Invocation, LifecycleAction, ProcessRunner, Runner, VagrantCommand, locate,
+    Invocation, LifecycleAction, ProcessRunner, Provisioning, Runner, VagrantCommand, locate,
 };
 
 /// Three containers; `gamma` is not started by a bare `vagrant up`.
@@ -93,6 +93,7 @@ impl Env {
         let command = VagrantCommand::Lifecycle {
             action,
             machines: targets.clone(),
+            provisioning: Provisioning::Default,
         };
         let mut req = self.request(operation_type(action), command.clone());
         if action.is_destructive() {
@@ -230,6 +231,7 @@ async fn force_destroy(vagrant: &Path, dir: &Path) {
                 args: VagrantCommand::Lifecycle {
                     action: LifecycleAction::Destroy,
                     machines: vec![],
+                    provisioning: Provisioning::Default,
                 }
                 .args(),
                 working_dir: dir.to_path_buf(),

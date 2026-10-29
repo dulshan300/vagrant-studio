@@ -9,7 +9,10 @@ walkthrough on Windows accepted by the user 2026-10-29); `crates/provider-regist
 tests pass; real detection checked on Windows; Providers page accepted by the user 2026-10-29).
 Networking (public networks, host-port check) done in code and automated
 tests; walkthrough (`docs/testing/manual-network.md`) passed on Windows (user,
-2026-10-29). Next: shell provisioner management and results.
+2026-10-29). Shell provisioner management and results done in code and
+automated tests (named provisioners, run all/chosen, Up/Reload with
+`--provision`, per-machine results); walkthrough
+(`docs/testing/manual-provisioning.md`) not yet run. Next: that walkthrough.
 
 ## Completed phases
 - **Phase 0 — Inspection and planning** (2026-10-28): architecture, roadmap,
@@ -42,7 +45,7 @@ tests; walkthrough (`docs/testing/manual-network.md`) passed on Windows (user,
 | Box management: list with machine usage, update check, add (catalog / URL / file), update, remove with typed confirmation and token; box write lock | Done; Windows walkthrough accepted |
 | `crates/provider-registry` (capabilities, docker adapter, VirtualBox/Vagrant compatibility, Hyper-V coexistence) | Done (automated + real-host detection on Windows); Providers page accepted by the user 2026-10-29 |
 | Networking: public networks in the visual subset, host-port conflict detection | Done in code; automated tests pass; 14 generated files pass `vagrant validate`; walkthrough (`docs/testing/manual-network.md`) **passed** on Windows (user, 2026-10-29, "test ok", no itemized step results) |
-| Shell provisioner management and results | Not started |
+| Shell provisioner management and results: named provisioners in the visual subset, Provision dialog (all / chosen names via `--provision-with`; Start/Restart with `--provision`), backend name check, results parsed from output and stored per machine (migration 0003), shown on machine rows and in the operation drawer | Done in code; automated tests pass; 14 generated files pass `vagrant validate`; walkthrough (`docs/testing/manual-provisioning.md`) **not yet run** |
 | VirtualBox verification on Windows 11 and Ubuntu | Not started (needs the user) |
 
 | Check | Result |
@@ -56,6 +59,9 @@ tests; walkthrough (`docs/testing/manual-network.md`) passed on Windows (user,
 | provider-registry tests, Linux and as Windows binaries | Pass, 14 (adapters with fake runner/platform/probe, VirtualBox version table, serialization); vagrant-adapter now 32 (provider checks moved out) |
 | Opt-in `real_host` test (`cargo test -p vagrant-studio-provider-registry --test real_host -- --ignored --nocapture`) | Windows: Vagrant 2.4.9 + plugin; VirtualBox 7.1.18 supported, hypervisor bit set → needs attention (warning); VMware ready; Docker 29.7.2 ready. WSL: only Docker installed; the VMware Utility port shows as reachable because WSL forwards localhost to Windows (dev setup only) |
 | Frontend after provider-registry | Pass, 60 tests (capability-gated Suspend/Resume) |
+| Provisioning: fixtures | Captured 2026-10-29 with Windows Vagrant 2.4.9 + VMware Desktop (throwaway `almalinux/9` project, destroyed afterwards): first `up`, `--provision-with`, failing script, not-created machine, `reload --provision`. Findings: unknown `--provision-with` names are ignored with exit 0; `run: "never"` runs only by name; guest stderr appears on Vagrant's stdout |
+| Provisioning: Rust tests, Linux and as Windows binaries | Pass: config-model 24, vagrant-adapter 39 (parser against fixtures, `--provision-with` arguments), project-store 19 (migration 0003), operation-engine 30 (results stored per machine, latest per machine) |
+| Provisioning: frontend | Pass, 73 tests (provisioner choice across machines, outcome labels, Provision dialog) |
 | Networking: config-model | Pass, 21 (public networks in the multi-machine sample, DHCP spellings, unsupported options) |
 | Networking: provider-registry | Pass, 17 on Linux and as Windows binaries (bridged-interface parser on the anonymized Windows fixture, port check against a real listener) |
 | Networking: `vagrant validate`, Windows Vagrant 2.4.9 | **Pass**, 14/14 (feature sample now has a static public network with `bridge:` and a DHCP one) |
@@ -185,7 +191,7 @@ Vagrant prints guest output to stdout; failure summaries of human-output command
 include the last output lines.
 
 ## Next recommended task
-1. Phase 6 continued: shell provisioner management and results.
+1. Phase 6: user walkthrough of `docs/testing/manual-provisioning.md` on Windows.
 2. Push and confirm the Windows CI run for Phases 3–6.
 3. Optional: VirtualBox lifecycle run of `docs/testing/manual-lifecycle.md` on Windows.
 4. Before release: install the CI NSIS installer by hand on Windows 11.

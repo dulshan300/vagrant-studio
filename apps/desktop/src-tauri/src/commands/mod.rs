@@ -4,4 +4,5 @@ pub mod error;
 pub mod network;
 pub mod operations;
 pub mod projects;
+pub mod provisioning;
 pub mod vagrantfile;

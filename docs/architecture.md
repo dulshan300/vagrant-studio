@@ -145,7 +145,7 @@ category:
 
 ```jsonc
 {
-  "type": "operation.stdout",        // operation.started|stdout|stderr|progress|warning|completed|failed|cancel_requested|cancelled, environment.status_updated, machine.status_updated
+  "type": "operation.stdout",        // operation.started|stdout|stderr|progress|warning|provisioning|completed|failed|cancel_requested|cancelled, environment.status_updated, machine.status_updated
   "timestamp": "2026-10-28T12:00:00Z",
   "operationId": "…",                // when applicable
   "environmentId": "…",              // when applicable
@@ -165,6 +165,14 @@ is always loaded from the backend, and events only update live views.
 | Machine definitions | The Vagrantfile, evaluated by Vagrant | `machine_config` rows hold app-managed settings and cached metadata only |
 | Project/environment metadata | SQLite (local) and optional `.vagrant-studio/project.json` (portable) | — |
 | Operation logs | Log files under the app data dir | SQLite holds an index row per operation |
+| Provisioner results | The output of `up`/`reload`/`provision` | `provisioning_results` rows per machine and operation (status and the last 40 output lines per provisioner) |
+
+Provisioner results are read from Vagrant's human output when the command
+ends (`vagrant_adapter::provision`), because Vagrant has no machine-readable
+form of it. A provisioner counts as succeeded once a later step header
+appears; the one still running when the command ends failed (non-zero exit)
+or is unfinished (cancelled, timed out). Machines started in parallel
+(docker) can interleave output, so results are approximate there.
 
 The UI always distinguishes **configured** values (from the Vagrantfile or
 the app) from **observed** values (from Vagrant or the provider). Metrics

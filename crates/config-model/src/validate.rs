@@ -74,7 +74,29 @@ pub fn validate(config: &VagrantConfig) -> Vec<FieldError> {
         ));
     }
     host_port_collisions(&mut errors, config);
+    shadowed_provisioners(&mut errors, config);
     errors
+}
+
+/// Vagrant merges a machine's provisioner into a shared one with the same
+/// name, which the model can't show, so names must differ.
+fn shadowed_provisioners(errors: &mut Vec<FieldError>, config: &VagrantConfig) {
+    for (m, machine) in config.machines.iter().enumerate() {
+        for (i, p) in machine.settings.provisioners.iter().enumerate() {
+            if p.name.is_some()
+                && config
+                    .defaults
+                    .provisioners
+                    .iter()
+                    .any(|d| d.name == p.name)
+            {
+                errors.push(FieldError::new(
+                    format!("machines.{m}.settings.provisioners.{i}.name"),
+                    "A shared provisioner already uses this name.",
+                ));
+            }
+        }
+    }
 }
 
 fn settings(errors: &mut Vec<FieldError>, path: &str, s: &MachineSettings) {
@@ -177,6 +199,20 @@ fn settings(errors: &mut Vec<FieldError>, path: &str, s: &MachineSettings) {
         }
     }
     for (i, p) in s.provisioners.iter().enumerate() {
+        if let Some(name) = &p.name {
+            let at = format!("{path}.provisioners.{i}.name");
+            if !valid_provisioner_name(name) {
+                err(
+                    at,
+                    "Use up to 100 characters without commas, not starting with '-' or a space.",
+                );
+            } else if s.provisioners[..i]
+                .iter()
+                .any(|q| q.name.as_ref() == Some(name))
+            {
+                err(at, "Another provisioner already uses this name.");
+            }
+        }
         let at = format!("{path}.provisioners.{i}.source");
         match &p.source {
             ShellSource::Inline { script } => {
@@ -247,6 +283,16 @@ pub(crate) fn valid_machine_name(name: &str) -> bool {
         && name
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
+}
+
+/// Names that `--provision-with` can select: it splits its value on commas.
+/// Keep in sync with `ProvisionerName` in crates/vagrant-adapter.
+pub fn valid_provisioner_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.chars().count() <= 100
+        && !name.starts_with('-')
+        && name.trim() == name
+        && !name.chars().any(|c| c == ',' || c.is_control())
 }
 
 fn valid_hostname(h: &str) -> bool {

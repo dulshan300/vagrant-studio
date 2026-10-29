@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { CircleAlert, LoaderCircle } from '@lucide/vue'
+import { CircleAlert, CircleCheck, CircleX, LoaderCircle } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import StatusBadge from '@/components/status/StatusBadge.vue'
 import DestroyMachinesDialog from './DestroyMachinesDialog.vue'
+import ProvisionMachinesDialog from './ProvisionMachinesDialog.vue'
 import { ACTION_META } from './actions'
 import {
   actionsFor,
@@ -14,6 +15,7 @@ import {
   targetMachines,
 } from '@/lib/operations'
 import { relativeTime } from '@/lib/projects'
+import { PROVISION_COMMANDS, provisioningOutcome, type ProvisionCommand } from '@/lib/provisioning'
 import { hasBackend } from '@/services/app'
 import { errorMessage } from '@/services/errors'
 import { useOperationsStore } from '@/stores/operations'
@@ -26,12 +28,16 @@ const operations = useOperationsStore()
 onMounted(() => {
   if (hasBackend() && !operations.readiness && !operations.readinessLoading)
     void operations.checkHost()
+  if (hasBackend()) operations.loadLatestProvisioning(props.environment.id).catch(() => undefined)
 })
 
 const selected = ref<string[]>([])
 const actionError = ref<string | null>(null)
 const destroyOpen = ref(false)
 const destroyTargets = ref<string[]>([])
+const provisionOpen = ref(false)
+const provisionTargets = ref<string[]>([])
+const provisionCommands = ref<ProvisionCommand[]>([])
 
 const machines = computed(() =>
   props.status.machines.map((m) => ({
@@ -65,11 +71,27 @@ function pendingFor(name: string): Operation[] {
   return pending.value.filter((op) => targetMachines(op).includes(name))
 }
 
-function allowed(action: LifecycleAction): boolean {
+function allowedFor(action: LifecycleAction, names: string[]): boolean {
   return machines.value
-    .filter((m) => targets.value.includes(m.name))
+    .filter((m) => names.includes(m.name))
     .some((m) => actionsFor(m.ui, m.capabilities).includes(action))
 }
+
+/** Provision opens a dialog that can also start or restart machines first. */
+function allowed(action: LifecycleAction): boolean {
+  if (action === 'provision') return PROVISION_COMMANDS.some((c) => allowedFor(c, targets.value))
+  return allowedFor(action, targets.value)
+}
+
+/** The latest recorded provisioner results, by machine name. */
+const lastProvisioning = computed(() =>
+  Object.fromEntries(
+    (operations.latestProvisioning[props.environment.id] ?? []).map((m) => [
+      m.machine,
+      { ...provisioningOutcome(m), at: m.finishedAt, operationId: m.operationId },
+    ]),
+  ),
+)
 
 function toggleAll() {
   selected.value = allSelected.value ? [] : machines.value.map((m) => m.name)
@@ -80,6 +102,12 @@ async function run(action: LifecycleAction, names: string[]) {
   if (action === 'destroy') {
     destroyTargets.value = [...names]
     destroyOpen.value = true
+    return
+  }
+  if (action === 'provision') {
+    provisionTargets.value = [...names]
+    provisionCommands.value = PROVISION_COMMANDS.filter((c) => allowedFor(c, names))
+    provisionOpen.value = true
     return
   }
   try {
@@ -165,6 +193,30 @@ async function run(action: LifecycleAction, names: string[]) {
             />
             <span class="truncate font-mono text-xs">{{ m.name }}</span>
           </label>
+          <button
+            v-if="lastProvisioning[m.name]"
+            type="button"
+            :class="[
+              'flex min-w-0 items-center gap-1 text-[11px] hover:underline',
+              lastProvisioning[m.name]!.status === 'succeeded'
+                ? 'text-muted'
+                : 'text-status-failed',
+            ]"
+            :title="`Last provisioning ${relativeTime(lastProvisioning[m.name]!.at)}; open its output`"
+            @click="operations.open(lastProvisioning[m.name]!.operationId)"
+          >
+            <CircleCheck
+              v-if="lastProvisioning[m.name]!.status === 'succeeded'"
+              class="size-3 shrink-0"
+              aria-hidden="true"
+            />
+            <CircleX v-else class="size-3 shrink-0" aria-hidden="true" />
+            <span class="truncate">
+              {{ lastProvisioning[m.name]!.text }} ·
+              {{ relativeTime(lastProvisioning[m.name]!.at) }}
+            </span>
+          </button>
+          <span class="flex-1" />
           <span class="flex items-center gap-2">
             <span
               v-if="pendingFor(m.name).length"
@@ -194,6 +246,12 @@ async function run(action: LifecycleAction, names: string[]) {
       {{ actionError }}
     </p>
 
+    <ProvisionMachinesDialog
+      v-model:open="provisionOpen"
+      :environment-id="environment.id"
+      :machines="provisionTargets"
+      :commands="provisionCommands"
+    />
     <DestroyMachinesDialog
       v-model:open="destroyOpen"
       :environment-id="environment.id"

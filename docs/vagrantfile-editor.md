@@ -35,6 +35,7 @@ Vagrant.configure("2") do |config|           # "2" or 2; any block variable name
   end
   config.vm.provision "shell", inline: "…" | <<-EOS … | <<~EOS … | path: "…",
     run: "once" | "always" | "never", privileged: true | false
+  config.vm.provision "name", type: "shell", …     # or type: :shell; same options
   config.vm.define "name", primary: true, autostart: false do |m|
     # the same m.vm.* settings (no nested define, no `config.` inside)
   end
@@ -81,6 +82,22 @@ the same model.
   machine, `up` fails with a port collision. Within one Vagrantfile, a host
   port forwarded twice is already a validation error. Ports declared by
   *other* environments are a Phase 7 item (cross-project port warnings).
+
+## Shell provisioners (Phase 6)
+
+- A provisioner may have a **name** (`vm.provision "name", type: "shell"`).
+  Only named provisioners can be run on their own from the Machines page
+  (`--provision-with`). Names can't contain commas (Vagrant splits the
+  option on them), start with `-` or a space, or exceed 100 characters.
+- Vagrant merges a machine's provisioner into a shared one with the same
+  name, which the forms can't show, so a name may appear only once among a
+  machine's provisioners and the shared ones.
+- Vagrant runs the shared provisioners first, then the machine's own, in file
+  order, and `--provision-with a,b` keeps that order. `run: "never"` ones run
+  only when chosen by name; `--provision-with shell` (the type) skips them.
+  An unknown name is ignored without an error (exit 0), so the backend
+  refuses names a targeted machine doesn't define. (Checked with Vagrant 2.4.9
+  on Windows, see `fixtures/command-output/windows-vagrant-2.4.9/README.md`.)
 
 ## Generated files
 

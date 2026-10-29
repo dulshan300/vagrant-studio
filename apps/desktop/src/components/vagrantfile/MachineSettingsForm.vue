@@ -427,6 +427,16 @@ function parsePrivileged(value: string): boolean | null {
         class="space-y-2 rounded-md border bg-surface-muted/40 p-3"
       >
         <div class="flex flex-wrap items-center gap-2">
+          <TextInput
+            :model-value="p.name ?? ''"
+            class="w-40"
+            placeholder="Name (optional)"
+            title="Named provisioners can be run on their own from the Machines page"
+            :aria-label="`Provisioner ${i + 1} name`"
+            :invalid="!!err(`provisioners.${i}.name`)"
+            spellcheck="false"
+            @update:model-value="p.name = optionalText($event)"
+          />
           <select
             :value="p.source.kind"
             :class="selectInput"
@@ -450,7 +460,7 @@ function parsePrivileged(value: string): boolean | null {
             <option value="">Run once (default)</option>
             <option value="once">Run once (set explicitly)</option>
             <option value="always">Run on every up and reload</option>
-            <option value="never">Run only with --provision-with</option>
+            <option value="never">Run only when chosen by name</option>
           </select>
           <select
             :value="p.privileged === null ? '' : String(p.privileged)"
@@ -493,6 +503,12 @@ function parsePrivileged(value: string): boolean | null {
             <Trash2 />
           </Button>
         </div>
+        <p v-if="err(`provisioners.${i}.name`)" class="text-xs text-status-failed" role="alert">
+          {{ err(`provisioners.${i}.name`) }}
+        </p>
+        <p v-else-if="p.run === 'never' && !p.name" class="text-xs text-muted">
+          Give it a name so it can be chosen on the Machines page.
+        </p>
         <template v-if="p.source.kind === 'inline'">
           <TextInput
             v-model="p.source.script"

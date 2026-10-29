@@ -87,6 +87,9 @@ pub fn run() {
             commands::operations::get_operation,
             commands::operations::read_operation_log,
             commands::operations::cancel_operation,
+            commands::provisioning::list_provisioners,
+            commands::provisioning::get_operation_provisioning,
+            commands::provisioning::get_latest_provisioning,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Vagrant Studio");

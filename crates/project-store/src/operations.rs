@@ -223,12 +223,12 @@ impl Store {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::test_support::store;
     use vagrant_studio_domain::{EnvironmentType, NewEnvironment, NewProject};
 
-    fn new_op(env: Option<EnvironmentId>) -> NewOperation {
+    pub(crate) fn new_op(env: Option<EnvironmentId>) -> NewOperation {
         NewOperation {
             project_id: None,
             environment_id: env,
@@ -240,7 +240,7 @@ mod tests {
         }
     }
 
-    async fn environment(s: &Store) -> EnvironmentId {
+    pub(crate) async fn environment(s: &Store) -> EnvironmentId {
         let p = s
             .insert_project(&NewProject {
                 name: "Web".into(),

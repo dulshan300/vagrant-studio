@@ -15,6 +15,7 @@ mod confirm;
 pub mod events;
 pub mod lifecycle;
 mod log;
+mod provisioning;
 pub mod redact;
 mod scheduler;
 
@@ -37,6 +38,7 @@ use vagrant_studio_vagrant_adapter::{
 pub use confirm::{Confirmation, ConfirmationProof};
 pub use events::{EventSink, OperationEvent};
 pub use log::{LogLine, read_log};
+pub use provisioning::MachineProvisioning;
 
 /// Lines of stdout kept in memory for parsing (status output is small).
 const MAX_CAPTURED_LINES: usize = 20_000;
@@ -328,6 +330,36 @@ impl OperationEngine {
             .collect())
     }
 
+    /// Provisioner results of one operation, per machine.
+    pub async fn operation_provisioning(
+        &self,
+        id: OperationId,
+    ) -> Result<Vec<MachineProvisioning>, EngineError> {
+        Ok(self
+            .inner
+            .store
+            .operation_provisioning(id)
+            .await?
+            .into_iter()
+            .filter_map(provisioning::from_record)
+            .collect())
+    }
+
+    /// The most recent provisioner results of each machine of an environment.
+    pub async fn latest_provisioning(
+        &self,
+        environment_id: EnvironmentId,
+    ) -> Result<Vec<MachineProvisioning>, EngineError> {
+        Ok(self
+            .inner
+            .store
+            .latest_provisioning(environment_id)
+            .await?
+            .into_iter()
+            .filter_map(provisioning::from_record)
+            .collect())
+    }
+
     async fn prepare(
         &self,
         req: &OperationRequest,
@@ -535,6 +567,26 @@ impl OperationEngine {
                 .await?;
         }
 
+        let provisioned = provisioning::collect(
+            op.id,
+            &req.command,
+            &captured.outcome,
+            status,
+            &captured.stdout,
+        );
+        if !provisioned.is_empty() {
+            let records: Vec<_> = provisioned
+                .iter()
+                .map(|m| provisioning::to_record(req.environment_id, m))
+                .collect();
+            self.inner.store.save_provisioning(&records).await?;
+            self.emit(
+                "operation.provisioning",
+                Some(&op),
+                json!({ "machines": provisioned }),
+            );
+        }
+
         if req.command.is_mutating()
             && let Some(env) = req.environment_id
             && captured.outcome.is_ok()
@@ -636,7 +688,10 @@ impl OperationEngine {
                 "Checking machine state afterwards failed: {failure}"
             )));
         }
-        let VagrantCommand::Lifecycle { action, machines } = &req.command else {
+        let VagrantCommand::Lifecycle {
+            action, machines, ..
+        } = &req.command
+        else {
             return Ok(None);
         };
         if outcome != OperationStatus::Succeeded {

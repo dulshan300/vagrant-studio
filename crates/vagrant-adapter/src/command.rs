@@ -41,6 +41,76 @@ impl From<MachineName> for String {
     }
 }
 
+/// A provisioner name that `--provision-with` can select: it splits its
+/// value on commas, and a leading `-` could read as an option. Keep in sync
+/// with `valid_provisioner_name` in crates/config-model.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub struct ProvisionerName(String);
+
+impl ProvisionerName {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl TryFrom<String> for ProvisionerName {
+    type Error = String;
+
+    fn try_from(name: String) -> Result<Self, Self::Error> {
+        let valid = !name.is_empty()
+            && name.chars().count() <= 100
+            && !name.starts_with('-')
+            && name.trim() == name
+            && !name.chars().any(|c| c == ',' || c.is_control());
+        if valid {
+            Ok(Self(name))
+        } else {
+            Err(format!("\"{name}\" can't be selected as a provisioner"))
+        }
+    }
+}
+
+impl From<ProvisionerName> for String {
+    fn from(name: ProvisionerName) -> Self {
+        name.0
+    }
+}
+
+/// Which provisioners `up`, `reload` or `provision` runs.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum Provisioning {
+    /// Vagrant's own choice: `up` provisions machines it creates, `reload`
+    /// none, `provision` all.
+    #[default]
+    Default,
+    /// `--provision`: every provisioner except `run: "never"` ones.
+    All,
+    /// `--provision-with a,b`: only these (by name, or `shell` for every
+    /// shell provisioner), including `run: "never"` ones.
+    Only { names: Vec<ProvisionerName> },
+}
+
+impl Provisioning {
+    fn push_args(&self, args: &mut Vec<String>) {
+        match self {
+            Self::Default => {}
+            Self::All => args.push("--provision".into()),
+            Self::Only { names } => {
+                args.push("--provision-with".into());
+                args.push(
+                    names
+                        .iter()
+                        .map(ProvisionerName::as_str)
+                        .collect::<Vec<_>>()
+                        .join(","),
+                );
+            }
+        }
+    }
+}
+
 /// Machine lifecycle commands, run with explicit machine names.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -65,6 +135,11 @@ impl LifecycleAction {
             Self::Provision => "provision",
             Self::Destroy => "destroy",
         }
+    }
+
+    /// Whether the command takes `--provision` / `--provision-with`.
+    pub fn runs_provisioners(self) -> bool {
+        matches!(self, Self::Up | Self::Reload | Self::Provision)
     }
 
     /// Needs a typed confirmation in the UI and a backend confirmation token.
@@ -124,9 +199,12 @@ pub enum VagrantCommand {
     /// `up` has no `--provider`: it fails for machines already created with
     /// another provider, so `VAGRANT_DEFAULT_PROVIDER` is used instead.
     /// `destroy` always gets `--force`: the UI asks for confirmation first.
+    /// `provisioning` is only used by actions that
+    /// [run provisioners](LifecycleAction::runs_provisioners).
     Lifecycle {
         action: LifecycleAction,
         machines: Vec<MachineName>,
+        provisioning: Provisioning,
     },
     /// `box outdated --global`: checks every installed box's catalog.
     BoxOutdated,
@@ -205,10 +283,17 @@ impl VagrantCommand {
                 args.push(b.name.clone());
                 args
             }
-            Self::Lifecycle { action, machines } => {
+            Self::Lifecycle {
+                action,
+                machines,
+                provisioning,
+            } => {
                 let mut args = vec![action.verb().to_owned()];
                 if *action == LifecycleAction::Destroy {
                     args.push("--force".into());
+                }
+                if action.runs_provisioners() {
+                    provisioning.push_args(&mut args);
                 }
                 args.push("--no-tty".into());
                 args.extend(machines.iter().map(|m| m.as_str().to_owned()));
@@ -272,7 +357,64 @@ mod tests {
         VagrantCommand::Lifecycle {
             action,
             machines: names.iter().filter_map(|n| m(n)).collect(),
+            provisioning: Provisioning::Default,
         }
+    }
+
+    fn with(action: LifecycleAction, provisioning: Provisioning) -> Vec<String> {
+        VagrantCommand::Lifecycle {
+            action,
+            machines: m("web").into_iter().collect(),
+            provisioning,
+        }
+        .args()
+    }
+
+    fn only(names: &[&str]) -> Provisioning {
+        Provisioning::Only {
+            names: names
+                .iter()
+                .map(|n| ProvisionerName::try_from((*n).to_owned()).unwrap())
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn provisioning_options() {
+        assert_eq!(
+            with(LifecycleAction::Provision, only(&["setup", "seed data"])),
+            [
+                "provision",
+                "--provision-with",
+                "setup,seed data",
+                "--no-tty",
+                "web"
+            ]
+        );
+        assert_eq!(
+            with(LifecycleAction::Reload, Provisioning::All),
+            ["reload", "--provision", "--no-tty", "web"]
+        );
+        assert_eq!(
+            with(LifecycleAction::Up, only(&["shell"])),
+            ["up", "--provision-with", "shell", "--no-tty", "web"]
+        );
+        assert_eq!(
+            with(LifecycleAction::Halt, Provisioning::All),
+            ["halt", "--no-tty", "web"]
+        );
+        for bad in ["", "a,b", "-x", " a", "a\n"] {
+            assert!(
+                ProvisionerName::try_from(bad.to_owned()).is_err(),
+                "{bad:?}"
+            );
+        }
+        let json: Provisioning =
+            serde_json::from_str(r#"{"kind":"only","names":["setup"]}"#).unwrap();
+        assert_eq!(json, only(&["setup"]));
+        assert!(
+            serde_json::from_str::<Provisioning>(r#"{"kind":"only","names":["a,b"]}"#).is_err()
+        );
     }
 
     #[test]

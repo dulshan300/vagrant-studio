@@ -67,6 +67,8 @@ export interface ProviderSettings {
 export type ShellSource = { kind: 'inline'; script: string } | { kind: 'path'; path: string }
 
 export interface ShellProvisioner {
+  /** Named provisioners (`vm.provision "name", type: "shell"`) can be run on their own. */
+  name: string | null
   source: ShellSource
   run: ProvisionRun | null
   privileged: boolean | null
@@ -139,4 +141,17 @@ export interface HostPort {
 export interface BridgedInterface {
   name: string
   wireless: boolean
+}
+
+/** Mirrors `MachineProvisioners` in crates/config-model: shared ones first, then the machine's. */
+export interface MachineProvisioners {
+  machine: string
+  provisioners: (ShellProvisioner & { shared: boolean })[]
+}
+
+/** Mirrors `ProvisionerList` in src-tauri/src/commands/provisioning.rs. */
+export interface ProvisionerList {
+  machines: MachineProvisioners[]
+  /** Why provisioners can't be listed; `machines` is then empty. */
+  unavailable: string | null
 }

@@ -103,6 +103,12 @@ describe('targetMachines', () => {
         commandLine: 'vagrant destroy --force --no-tty web db',
       }),
     ).toEqual(['web', 'db'])
+    expect(
+      targetMachines({
+        operationType: 'provision',
+        commandLine: 'vagrant provision --provision-with setup,seed data --no-tty web',
+      }),
+    ).toEqual(['web'])
     expect(targetMachines({ operationType: 'halt', commandLine: 'vagrant halt --no-tty' })).toEqual(
       [],
     )

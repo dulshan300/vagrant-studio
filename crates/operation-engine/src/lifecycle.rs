@@ -6,7 +6,7 @@
 //! `vagrant status` lists them); Vagrant itself reverses it for `destroy`.
 
 use vagrant_studio_domain::OperationType;
-use vagrant_studio_vagrant_adapter::{LifecycleAction, MachineName, StateClass};
+use vagrant_studio_vagrant_adapter::{LifecycleAction, MachineName, Provisioning, StateClass};
 
 use crate::{EngineError, EnvironmentStatus, MachineStatusDto};
 
@@ -55,6 +55,36 @@ pub fn order_targets(
         .filter(|m| requested.contains(&m.name))
         .map(|m| MachineName::try_from(m.name.clone()).map_err(EngineError::Invalid))
         .collect()
+}
+
+/// Refuses provisioner choices the action can't use and gives requests that
+/// mean the same one form, so duplicate requests are recognized.
+pub fn check_provisioning(
+    action: LifecycleAction,
+    provisioning: Provisioning,
+) -> Result<Provisioning, EngineError> {
+    match provisioning {
+        Provisioning::Default => Ok(Provisioning::Default),
+        _ if !action.runs_provisioners() => Err(EngineError::Invalid(format!(
+            "`vagrant {}` doesn't run provisioners.",
+            action.verb()
+        ))),
+        Provisioning::All if action == LifecycleAction::Provision => Ok(Provisioning::Default),
+        Provisioning::Only { names } if names.is_empty() => Err(EngineError::Invalid(
+            "Choose at least one provisioner.".into(),
+        )),
+        Provisioning::Only { names }
+            if names
+                .iter()
+                .enumerate()
+                .any(|(i, n)| names[..i].contains(n)) =>
+        {
+            Err(EngineError::Invalid(
+                "A provisioner is chosen more than once.".into(),
+            ))
+        }
+        other => Ok(other),
+    }
 }
 
 /// What the user types to confirm: the machine name for one machine, the
@@ -111,6 +141,7 @@ fn describe(class: StateClass) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use vagrant_studio_vagrant_adapter::ProvisionerName;
 
     fn machine(name: &str, state: &str) -> MachineStatusDto {
         MachineStatusDto {
@@ -170,6 +201,41 @@ mod tests {
             message: "boom".into(),
         });
         assert!(order_targets(Some(&failed), &["web".into()]).is_err());
+    }
+
+    #[test]
+    fn provisioning_is_checked_and_normalized() {
+        use LifecycleAction::*;
+        let only = |names: &[&str]| Provisioning::Only {
+            names: names
+                .iter()
+                .map(|n| ProvisionerName::try_from((*n).to_owned()).unwrap())
+                .collect(),
+        };
+        assert_eq!(
+            check_provisioning(Provision, Provisioning::All).unwrap(),
+            Provisioning::Default
+        );
+        assert_eq!(
+            check_provisioning(Reload, Provisioning::All).unwrap(),
+            Provisioning::All
+        );
+        assert_eq!(check_provisioning(Up, only(&["a"])).unwrap(), only(&["a"]));
+        assert_eq!(
+            check_provisioning(Halt, Provisioning::Default).unwrap(),
+            Provisioning::Default
+        );
+        for (action, p) in [
+            (Halt, Provisioning::All),
+            (Destroy, only(&["a"])),
+            (Provision, only(&[])),
+            (Provision, only(&["a", "b", "a"])),
+        ] {
+            assert!(
+                matches!(check_provisioning(action, p), Err(EngineError::Invalid(_))),
+                "{action:?}"
+            );
+        }
     }
 
     #[test]

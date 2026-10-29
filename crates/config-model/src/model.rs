@@ -34,6 +34,54 @@ fn yes() -> bool {
     true
 }
 
+/// The provisioners Vagrant runs for one machine, in its order.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MachineProvisioners {
+    pub machine: String,
+    pub provisioners: Vec<MachineProvisioner>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MachineProvisioner {
+    #[serde(flatten)]
+    pub provisioner: ShellProvisioner,
+    /// Set on `config`, so every machine runs it.
+    pub shared: bool,
+}
+
+impl VagrantConfig {
+    /// Each machine's provisioners: shared ones first, then its own (Vagrant
+    /// 2.4.9 runs them in this order). Without `vm.define` the one machine is
+    /// `default`.
+    pub fn provisioners_by_machine(&self) -> Vec<MachineProvisioners> {
+        let entries = |own: &[ShellProvisioner]| {
+            let shared = self.defaults.provisioners.iter().map(|p| (p, true));
+            shared
+                .chain(own.iter().map(|p| (p, false)))
+                .map(|(p, shared)| MachineProvisioner {
+                    provisioner: p.clone(),
+                    shared,
+                })
+                .collect()
+        };
+        if self.machines.is_empty() {
+            return vec![MachineProvisioners {
+                machine: "default".into(),
+                provisioners: entries(&[]),
+            }];
+        }
+        self.machines
+            .iter()
+            .map(|m| MachineProvisioners {
+                machine: m.name.clone(),
+                provisioners: entries(&m.settings.provisioners),
+            })
+            .collect()
+    }
+}
+
 /// The `<var>.vm.*` settings of `config` or of one machine.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -148,10 +196,14 @@ impl ProviderKind {
     }
 }
 
-/// `vm.provision "shell"` with an inline script or a script file.
+/// `vm.provision "shell"` with an inline script or a script file, or
+/// `vm.provision "name", type: "shell"` when it has a name. Only named
+/// provisioners can be run on their own (`vagrant provision --provision-with`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ShellProvisioner {
+    #[serde(default)]
+    pub name: Option<String>,
     pub source: ShellSource,
     #[serde(default)]
     pub run: Option<ProvisionRun>,

@@ -1,0 +1,7 @@
+==> web: Running provisioner: hello (shell)...
+    web: Running: inline script
+    web: hello from vagrant
+==> web: Running provisioner: setup (shell)...
+    web: Running: C:/Users/dev/AppData/Local/Temp/vagrant-shell20261029-28776-843agj.sh
+    web: path script on web
+    web: args:

@@ -40,8 +40,7 @@ async function submit() {
   busy.value = true
   try {
     await operations.runLifecycle(props.environmentId, 'destroy', props.machines, {
-      token: confirmation.value.token,
-      typed: typed.value,
+      confirmation: { token: confirmation.value.token, typed: typed.value },
     })
     open.value = false
     emit('started')

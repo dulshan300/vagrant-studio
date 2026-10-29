@@ -20,7 +20,9 @@ use sha2::{Digest, Sha256};
 
 pub use generate::generate;
 pub use model::*;
-pub use validate::{FieldError, MAX_CPUS, MAX_MEMORY_MB, MIN_MEMORY_MB, validate};
+pub use validate::{
+    FieldError, MAX_CPUS, MAX_MEMORY_MB, MIN_MEMORY_MB, valid_provisioner_name, validate,
+};
 
 /// Starts the header line holding the checksum of everything after it.
 pub const MARKER_PREFIX: &str = "# vagrant-studio: sha256=";

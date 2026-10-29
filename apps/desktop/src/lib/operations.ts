@@ -82,14 +82,15 @@ export function primaryAction(state: MachineState): LifecycleAction | null {
 
 /**
  * Machines a lifecycle operation names, read from its command line
- * (`vagrant <verb> [--flags] <names…>`). Machine names never start with `-`.
+ * (`vagrant <verb> [options] --no-tty <names…>`). Option values such as
+ * provisioner names (which may contain spaces) come before `--no-tty`;
+ * machine names never contain spaces or start with `-`.
  */
 export function targetMachines(op: Pick<Operation, 'operationType' | 'commandLine'>): string[] {
   if (!(LIFECYCLE_ACTIONS as readonly string[]).includes(op.operationType)) return []
-  return op.commandLine
-    .split(' ')
-    .slice(2)
-    .filter((t) => t && !t.startsWith('-'))
+  const tokens = op.commandLine.split(' ')
+  const end = tokens.indexOf('--no-tty')
+  return tokens.slice(end === -1 ? 2 : end + 1).filter((t) => t && !t.startsWith('-'))
 }
 
 export const ACTIVE_STATUSES: readonly OperationStatus[] = ['queued', 'running', 'cancel_requested']

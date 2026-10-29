@@ -87,7 +87,7 @@ export function newForwardedPort(config: VagrantConfig): ForwardedPort {
 }
 
 export function newProvisioner(): ShellProvisioner {
-  return { source: { kind: 'inline', script: '' }, run: null, privileged: null }
+  return { name: null, source: { kind: 'inline', script: '' }, run: null, privileged: null }
 }
 
 /** Moves item `index` by `delta` places, if that stays inside the list. */

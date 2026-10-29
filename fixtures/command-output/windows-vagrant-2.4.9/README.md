@@ -11,3 +11,16 @@ Phase 6 (2026-10-29): `box-outdated-global.txt` is `vagrant box outdated --globa
 `virtualbox-list-bridgedifs.txt` (2026-10-29) is `VBoxManage list bridgedifs` from
 VirtualBox 7.1.18 with GUIDs, IP addresses and MAC addresses replaced by
 placeholders; names, statuses and line endings are as captured.
+
+Provisioning (2026-10-29), stdout of each command unless named `-stderr`, captured
+with a throwaway two-machine `almalinux/9` project on VMware Desktop (named,
+unnamed, `path:`, `privileged: false` and `run: "never"` shell provisioners).
+The Windows user name in temporary paths is replaced by `dev`.
+`up-provision-multi.txt` is the first `up --no-tty web db`; `provision-with.txt`
+is `provision --provision-with hello,setup --no-tty web` (runs in Vagrantfile
+order); `provision-fail.txt` / `provision-fail-stderr.txt` are a script that
+exits 3 (Vagrant exits 1; guest stderr appears on stdout);
+`provision-not-created.txt` is `provision` on a machine never created (exit 0);
+`reload-provision.txt` is `reload --provision --no-tty db`. Not stored because
+the output was empty: `--provision-with nope` (an unknown name) printed nothing
+and exited 0.

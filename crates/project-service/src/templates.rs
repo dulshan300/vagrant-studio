@@ -300,6 +300,7 @@ mod tests {
                     disabled: true,
                 }],
                 provisioners: vec![ShellProvisioner {
+                    name: None,
                     source: ShellSource::Inline {
                         script: "echo \"shared #{1}\" \\\n  && true\n".into(),
                     },
@@ -347,6 +348,7 @@ mod tests {
                             memory_mb: Some(1024),
                         }],
                         provisioners: vec![ShellProvisioner {
+                            name: None,
                             source: ShellSource::Inline {
                                 script: "apt-get update -y\n  echo indented\n".into(),
                             },
@@ -372,13 +374,24 @@ mod tests {
                             cpus: None,
                             memory_mb: Some(512),
                         }],
-                        provisioners: vec![ShellProvisioner {
-                            source: ShellSource::Path {
-                                path: "scripts/setup.sh".into(),
+                        provisioners: vec![
+                            ShellProvisioner {
+                                name: None,
+                                source: ShellSource::Path {
+                                    path: "scripts/setup.sh".into(),
+                                },
+                                run: Some(ProvisionRun::Once),
+                                privileged: Some(true),
                             },
-                            run: Some(ProvisionRun::Once),
-                            privileged: Some(true),
-                        }],
+                            ShellProvisioner {
+                                name: Some("seed data".into()),
+                                source: ShellSource::Inline {
+                                    script: "echo seed\n".into(),
+                                },
+                                run: Some(ProvisionRun::Never),
+                                privileged: None,
+                            },
+                        ],
                         ..Default::default()
                     },
                 },

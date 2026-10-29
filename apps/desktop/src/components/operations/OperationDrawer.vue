@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { Square, X } from '@lucide/vue'
+import { CircleCheck, CircleDashed, CircleX, Square, X } from '@lucide/vue'
 import {
   DialogClose,
   DialogContent,
@@ -13,9 +13,11 @@ import {
 import { Button } from '@/components/ui/button'
 import OperationStatusBadge from './OperationStatusBadge.vue'
 import { displayLine, duration, isActive, operationLabel } from '@/lib/operations'
+import { provisionerLabel } from '@/lib/provisioning'
 import { errorMessage } from '@/services/errors'
 import { useOperationsStore } from '@/stores/operations'
 import { cn } from '@/lib/utils'
+import type { ProvisionerRun } from '@/types/operations'
 
 const store = useOperationsStore()
 const open = computed({
@@ -26,6 +28,13 @@ const open = computed({
 })
 const op = computed(() => store.selected)
 const lines = computed(() => (op.value ? (store.logs[op.value.id] ?? []) : []))
+const provisioned = computed(() => (op.value ? (store.provisioning[op.value.id] ?? []) : []))
+const STATUS_TEXT = { succeeded: 'Succeeded', failed: 'Failed', unfinished: 'Interrupted' }
+
+function outputText(run: ProvisionerRun): string {
+  const text = run.output.join('\n') || '(no output)'
+  return run.truncated ? `…\n${text}` : text
+}
 const cancelError = ref<string | null>(null)
 const logEl = ref<HTMLElement | null>(null)
 const follow = ref(true)
@@ -130,6 +139,46 @@ async function cancel() {
             </p>
             <p v-if="cancelError" class="mt-2 text-xs text-status-failed">{{ cancelError }}</p>
           </header>
+
+          <section
+            v-if="provisioned.length"
+            class="max-h-[40%] overflow-auto border-b px-5 py-3"
+            aria-label="Provisioners"
+          >
+            <h3 class="mb-2 text-xs font-medium">Provisioners</h3>
+            <div v-for="m in provisioned" :key="m.machine" class="mb-2 last:mb-0">
+              <p v-if="provisioned.length > 1" class="mb-1 font-mono text-[11px] text-muted">
+                {{ m.machine }}
+              </p>
+              <details
+                v-for="(run, i) in m.runs"
+                :key="i"
+                class="group rounded-md text-xs"
+                :open="run.status !== 'succeeded'"
+              >
+                <summary
+                  class="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 hover:bg-surface-muted"
+                >
+                  <CircleCheck
+                    v-if="run.status === 'succeeded'"
+                    class="size-3.5 shrink-0 text-status-running"
+                    aria-hidden="true"
+                  />
+                  <CircleX
+                    v-else-if="run.status === 'failed'"
+                    class="size-3.5 shrink-0 text-status-failed"
+                    aria-hidden="true"
+                  />
+                  <CircleDashed v-else class="size-3.5 shrink-0 text-muted" aria-hidden="true" />
+                  <span>{{ provisionerLabel(run) }}</span>
+                  <span class="text-muted">{{ STATUS_TEXT[run.status] }}</span>
+                </summary>
+                <pre
+                  class="mt-1 ml-6 overflow-x-auto rounded bg-surface-muted px-2 py-1.5 font-mono text-[11px] whitespace-pre-wrap"
+                  >{{ outputText(run) }}</pre>
+              </details>
+            </div>
+          </section>
 
           <div
             ref="logEl"

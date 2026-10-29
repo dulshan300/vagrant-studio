@@ -7,6 +7,7 @@
 mod environments;
 mod operations;
 mod projects;
+mod provisioning;
 mod settings;
 
 use std::path::Path;
@@ -19,6 +20,7 @@ use time::OffsetDateTime;
 
 pub use operations::EnvironmentStatusRecord;
 pub use projects::{ProjectFilter, ProjectUpdate};
+pub use provisioning::ProvisioningRecord;
 
 static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("../../migrations");
 
@@ -132,11 +134,12 @@ mod tests {
                 "project_tasks",
                 "projects",
                 "provisioners",
+                "provisioning_results",
                 "synced_folders",
                 "tags",
             ]
         );
-        assert_eq!(Store::schema_version(), 2);
+        assert_eq!(Store::schema_version(), 3);
     }
 
     #[tokio::test]
@@ -216,6 +219,6 @@ mod tests {
             .fetch_one(&store.pool)
             .await
             .unwrap();
-        assert_eq!(applied.0, 2);
+        assert_eq!(applied.0, 3);
     }
 }

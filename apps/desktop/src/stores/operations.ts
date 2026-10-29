@@ -1,19 +1,21 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { operationsApi, onOperationEvent } from '@/services/operations'
+import { operationsApi, onOperationEvent, type LifecycleOptions } from '@/services/operations'
 import { errorMessage } from '@/services/errors'
 import { isActive } from '@/lib/operations'
 import type {
-  ConfirmationProof,
   EnvironmentStatus,
   HostReadiness,
   LifecycleAction,
   LogLine,
+  MachineProvisioning,
   Operation,
   OperationEvent,
 } from '@/types/operations'
 
 const MAX_LOG_LINES = 5000
+/** Operations whose output is read for provisioner results. */
+const PROVISIONING_TYPES = new Set(['up', 'reload', 'provision'])
 
 /**
  * Live view of operations. History comes from the backend database; events
@@ -25,6 +27,10 @@ export const useOperationsStore = defineStore('operations', () => {
   const error = ref<string | null>(null)
   const logs = ref<Record<string, LogLine[]>>({})
   const statuses = ref<Record<string, EnvironmentStatus>>({})
+  /** Provisioner results by operation id. */
+  const provisioning = ref<Record<string, MachineProvisioning[]>>({})
+  /** The latest provisioner results of each machine, by environment id. */
+  const latestProvisioning = ref<Record<string, MachineProvisioning[]>>({})
   const readiness = ref<HostReadiness | null>(null)
   const readinessLoading = ref(false)
   const readinessError = ref<string | null>(null)
@@ -62,6 +68,28 @@ export const useOperationsStore = defineStore('operations', () => {
       if (op && !op.finishedAt) op.status = 'cancel_requested'
     }
     if (status) statuses.value[status.environmentId] = status
+    if (event.type === 'operation.provisioning' && event.operationId && event.payload.machines) {
+      recordProvisioning(event.operationId, event.environmentId, event.payload.machines)
+    }
+  }
+
+  function recordProvisioning(
+    operationId: string,
+    environmentId: string | null,
+    machines: MachineProvisioning[],
+  ) {
+    provisioning.value[operationId] = machines
+    const latest = environmentId ? latestProvisioning.value[environmentId] : undefined
+    if (!latest) return
+    for (const m of machines) {
+      const i = latest.findIndex((l) => l.machine === m.machine)
+      if (i === -1) latest.push(m)
+      else latest.splice(i, 1, m)
+    }
+  }
+
+  async function loadLatestProvisioning(environmentId: string) {
+    latestProvisioning.value[environmentId] = await operationsApi.latestProvisioning(environmentId)
   }
 
   async function init() {
@@ -122,9 +150,9 @@ export const useOperationsStore = defineStore('operations', () => {
     environmentId: string,
     action: LifecycleAction,
     machines: string[],
-    confirmation: ConfirmationProof | null = null,
+    options: LifecycleOptions = {},
   ) {
-    const op = await operationsApi.runLifecycle(environmentId, action, machines, confirmation)
+    const op = await operationsApi.runLifecycle(environmentId, action, machines, options)
     upsert(op)
     logs.value[op.id] ??= []
     return op
@@ -146,6 +174,11 @@ export const useOperationsStore = defineStore('operations', () => {
     selectedId.value = id
     if (!operations.value.some((o) => o.id === id)) upsert(await operationsApi.get(id))
     if (!logs.value[id]?.length) logs.value[id] = await operationsApi.log(id)
+    if (!provisioning.value[id]) {
+      const op = operations.value.find((o) => o.id === id)
+      if (op && !isActive(op) && PROVISIONING_TYPES.has(op.operationType))
+        provisioning.value[id] = await operationsApi.operationProvisioning(id)
+    }
   }
 
   function close() {
@@ -167,6 +200,8 @@ export const useOperationsStore = defineStore('operations', () => {
     error,
     logs,
     statuses,
+    provisioning,
+    latestProvisioning,
     readiness,
     readinessLoading,
     readinessError,
@@ -178,6 +213,7 @@ export const useOperationsStore = defineStore('operations', () => {
     load,
     loadStatuses,
     loadStatus,
+    loadLatestProvisioning,
     checkHost,
     refreshStatus,
     validate,

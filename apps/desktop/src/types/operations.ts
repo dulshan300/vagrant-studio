@@ -71,7 +71,32 @@ export interface OperationEvent {
     message?: string
     operation?: Operation
     status?: EnvironmentStatus
+    /** `operation.provisioning` */
+    machines?: MachineProvisioning[]
   }
+}
+
+/** Mirrors `Provisioning` in crates/vagrant-adapter. */
+export type Provisioning = { kind: 'default' } | { kind: 'all' } | { kind: 'only'; names: string[] }
+
+/** Mirrors `ProvisionerRun` in crates/vagrant-adapter (`provision` module). */
+export interface ProvisionerRun {
+  machine: string
+  /** `null` for unnamed provisioners, which Vagrant labels by type. */
+  name: string | null
+  kind: string
+  status: 'succeeded' | 'failed' | 'unfinished'
+  /** The last lines Vagrant printed for it, without the machine prefix. */
+  output: string[]
+  truncated: boolean
+}
+
+/** Mirrors `MachineProvisioning` in crates/operation-engine. */
+export interface MachineProvisioning {
+  operationId: string
+  machine: string
+  finishedAt: string
+  runs: ProvisionerRun[]
 }
 
 export type FindingLevel = 'ok' | 'warning' | 'error'

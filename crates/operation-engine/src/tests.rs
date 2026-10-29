@@ -2,7 +2,7 @@ use std::sync::Mutex as StdMutex;
 
 use vagrant_studio_domain::{EnvironmentType, NewEnvironment, NewProject};
 use vagrant_studio_vagrant_adapter::runner::{LineSink, RunFuture};
-use vagrant_studio_vagrant_adapter::{LifecycleAction, MachineName, OutputLine};
+use vagrant_studio_vagrant_adapter::{LifecycleAction, MachineName, OutputLine, Provisioning};
 
 use super::*;
 
@@ -215,6 +215,7 @@ fn lifecycle_request(
         command: VagrantCommand::Lifecycle {
             action,
             machines: names(machines),
+            provisioning: Provisioning::Default,
         },
         ..status_request(env)
     }
@@ -748,6 +749,85 @@ async fn provisioner_failures_include_the_guest_output() {
     assert!(
         summary.contains("Last output before the error:\n==> web: Running provisioner: shell...\nweb: Running: inline script\nweb: E: Could not get lock"),
         "{summary}"
+    );
+    let results = h.engine.operation_provisioning(op.id).await.unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].machine, "web");
+    assert_eq!(
+        results[0].runs[0].status,
+        vagrant_studio_vagrant_adapter::provision::ProvisionerStatus::Failed
+    );
+}
+
+#[tokio::test]
+async fn provisioner_results_are_stored_per_machine() {
+    use vagrant_studio_vagrant_adapter::provision::ProvisionerStatus;
+    let h =
+        harness(FakeRunner::new(&fixture("up-provision-multi.txt"), 0).with_status(STATUS_RUNNING))
+            .await;
+    let up = h
+        .engine
+        .run(lifecycle_request(
+            h.env,
+            LifecycleAction::Up,
+            &["web", "db"],
+        ))
+        .await
+        .unwrap();
+    assert_eq!(up.status, OperationStatus::Succeeded);
+    assert!(h.events.kinds().contains(&"operation.provisioning"));
+
+    let results = h.engine.operation_provisioning(up.id).await.unwrap();
+    let machines: Vec<_> = results.iter().map(|m| m.machine.as_str()).collect();
+    assert_eq!(machines, ["web", "db"]);
+    assert_eq!(results[0].runs.len(), 3);
+    assert!(
+        results
+            .iter()
+            .flat_map(|m| &m.runs)
+            .all(|r| r.status == ProvisionerStatus::Succeeded)
+    );
+
+    // A later run replaces only the machines it provisioned as "latest".
+    let engine = OperationEngine::new(
+        h.store.clone(),
+        Arc::new(FakeRunner::new(&fixture("provision-fail.txt"), 1).with_status(STATUS_RUNNING)),
+        h.events.clone(),
+        logs_dir(h._dir.path()),
+    );
+    let failed = engine
+        .run(lifecycle_request(
+            h.env,
+            LifecycleAction::Provision,
+            &["web"],
+        ))
+        .await
+        .unwrap();
+    assert_eq!(failed.status, OperationStatus::Failed);
+    let latest = engine.latest_provisioning(h.env).await.unwrap();
+    let summary: Vec<_> = latest
+        .iter()
+        .map(|m| (m.machine.as_str(), m.operation_id, m.runs[0].status))
+        .collect();
+    assert_eq!(
+        summary,
+        [
+            ("db", up.id, ProvisionerStatus::Succeeded),
+            ("web", failed.id, ProvisionerStatus::Failed),
+        ]
+    );
+
+    // Commands that don't provision record nothing.
+    let halt = engine
+        .run(lifecycle_request(h.env, LifecycleAction::Halt, &["web"]))
+        .await
+        .unwrap();
+    assert!(
+        engine
+            .operation_provisioning(halt.id)
+            .await
+            .unwrap()
+            .is_empty()
     );
 }
 

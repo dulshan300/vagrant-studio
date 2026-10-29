@@ -30,7 +30,7 @@ export const ACTION_META: Record<LifecycleAction, ActionMeta> = {
   provision: {
     label: 'Provision',
     icon: Wrench,
-    hint: 'vagrant provision: run provisioners again',
+    hint: 'vagrant provision: run all or chosen provisioners (can start or restart first)',
   },
   destroy: {
     label: 'Destroy',
