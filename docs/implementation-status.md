@@ -8,7 +8,8 @@ _Last updated: 2026-10-29_
 walkthrough on Windows accepted by the user 2026-10-29); `crates/provider-registry` (automated
 tests pass; real detection checked on Windows; Providers page accepted by the user 2026-10-29).
 Networking (public networks, host-port check) done in code and automated
-tests; awaiting the user's walkthrough (`docs/testing/manual-network.md`).
+tests; walkthrough (`docs/testing/manual-network.md`) passed on Windows (user,
+2026-10-29). Next: shell provisioner management and results.
 
 ## Completed phases
 - **Phase 0 — Inspection and planning** (2026-10-28): architecture, roadmap,
@@ -40,7 +41,7 @@ tests; awaiting the user's walkthrough (`docs/testing/manual-network.md`).
 |---|---|
 | Box management: list with machine usage, update check, add (catalog / URL / file), update, remove with typed confirmation and token; box write lock | Done; Windows walkthrough accepted |
 | `crates/provider-registry` (capabilities, docker adapter, VirtualBox/Vagrant compatibility, Hyper-V coexistence) | Done (automated + real-host detection on Windows); Providers page accepted by the user 2026-10-29 |
-| Networking: public networks in the visual subset, host-port conflict detection | Done in code; automated tests pass; 14 generated files pass `vagrant validate`; walkthrough (`docs/testing/manual-network.md`) pending |
+| Networking: public networks in the visual subset, host-port conflict detection | Done in code; automated tests pass; 14 generated files pass `vagrant validate`; walkthrough (`docs/testing/manual-network.md`) **passed** on Windows (user, 2026-10-29, "test ok", no itemized step results) |
 | Shell provisioner management and results | Not started |
 | VirtualBox verification on Windows 11 and Ubuntu | Not started (needs the user) |
 
@@ -184,9 +185,8 @@ Vagrant prints guest output to stdout; failure summaries of human-output command
 include the last output lines.
 
 ## Next recommended task
-1. User walkthrough of `docs/testing/manual-network.md` on Windows.
-2. Phase 6 continued: shell provisioner management and results.
-3. Push and confirm the Windows CI run for Phases 3–6.
-4. Optional: VirtualBox lifecycle run of `docs/testing/manual-lifecycle.md` on Windows.
-5. Before release: install the CI NSIS installer by hand on Windows 11.
-6. Later: re-enable the Ubuntu/Fedora CI jobs.
+1. Phase 6 continued: shell provisioner management and results.
+2. Push and confirm the Windows CI run for Phases 3–6.
+3. Optional: VirtualBox lifecycle run of `docs/testing/manual-lifecycle.md` on Windows.
+4. Before release: install the CI NSIS installer by hand on Windows 11.
+5. Later: re-enable the Ubuntu/Fedora CI jobs.
