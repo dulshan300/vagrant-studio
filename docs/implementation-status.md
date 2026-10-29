@@ -47,7 +47,7 @@ Remaining: VirtualBox verification on Windows 11 and Ubuntu (needs the user).
 | `crates/provider-registry` (capabilities, docker adapter, VirtualBox/Vagrant compatibility, Hyper-V coexistence) | Done (automated + real-host detection on Windows); Providers page accepted by the user 2026-10-29 |
 | Networking: public networks in the visual subset, host-port conflict detection | Done in code; automated tests pass; 14 generated files pass `vagrant validate`; walkthrough (`docs/testing/manual-network.md`) **passed** on Windows (user, 2026-10-29, "test ok", no itemized step results) |
 | Shell provisioner management and results: named provisioners in the visual subset, Provision dialog (all / chosen names via `--provision-with`; Start/Restart with `--provision`), backend name check, results parsed from output and stored per machine (migration 0003), shown on machine rows and in the operation drawer | Done in code; automated tests pass; 14 generated files pass `vagrant validate`; walkthrough (`docs/testing/manual-provisioning.md`) **passed** on Windows with VMware Desktop (user, 2026-10-29, "all pass", no itemized step results) |
-| VirtualBox verification on Windows 11 and Ubuntu | Not started (needs the user) |
+| VirtualBox verification on Windows 11 and Ubuntu | Windows: CLI smoke test passed under Hyper-V (2026-10-29: up, provision, suspend/resume, halt, destroy); walkthrough `docs/testing/manual-virtualbox.md` **not yet run**. Ubuntu: not started |
 
 | Check | Result |
 |---|---|
