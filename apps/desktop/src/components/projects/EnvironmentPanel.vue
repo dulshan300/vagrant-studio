@@ -1,14 +1,29 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { FileCheck, FileCode, RefreshCw, ScrollText, Trash2 } from '@lucide/vue'
+import {
+  Ellipsis,
+  FileCheck,
+  FileCode,
+  LoaderCircle,
+  RefreshCw,
+  ScrollText,
+  Trash2,
+} from '@lucide/vue'
 import { useRouter } from 'vue-router'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import ProviderSelect from '@/components/providers/ProviderSelect.vue'
 import { useProviderChoices } from '@/composables/useProviderChoices'
 import { projectsApi } from '@/services/projects'
 import EnvironmentMachines from '@/components/machines/EnvironmentMachines.vue'
 import OperationStatusBadge from '@/components/operations/OperationStatusBadge.vue'
 import { operationLabel } from '@/lib/operations'
+import { relativeTime } from '@/lib/projects'
 import { errorMessage } from '@/services/errors'
 import { useOperationsStore } from '@/stores/operations'
 import type { Environment } from '@/types/projects'
@@ -51,30 +66,36 @@ async function run(action: (id: string) => Promise<unknown>) {
 </script>
 
 <template>
-  <li class="px-5 py-4">
-    <div class="flex flex-wrap items-start justify-between gap-3">
+  <li class="rounded-lg border bg-surface shadow-xs">
+    <header class="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
       <div class="min-w-0">
         <div class="flex items-center gap-2">
-          <span class="font-medium">{{ environment.name }}</span>
-          <span class="rounded bg-surface-muted px-1.5 py-0.5 text-[11px] capitalize">{{
-            environment.environmentType
-          }}</span>
-          <label :for="`env-provider-${environment.id}`" class="sr-only">Provider</label>
-          <ProviderSelect
-            :id="`env-provider-${environment.id}`"
-            :model-value="environment.defaultProvider"
-            :choices="providers.choices.value"
-            allow-unset
-            class="!py-0.5 text-xs"
-            :title="'Provider used for new machines; existing machines keep theirs.'"
-            @update:model-value="changeProvider"
-          />
+          <span class="font-semibold">{{ environment.name }}</span>
+          <span
+            class="rounded-full bg-surface-muted px-2 py-0.5 text-[11px] text-muted capitalize"
+            >{{ environment.environmentType }}</span
+          >
         </div>
-        <code
-          class="mt-0.5 block truncate font-mono text-xs text-muted"
-          :title="environment.rootPath"
-          >{{ environment.rootPath }}</code
-        >
+        <div class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
+          <code class="truncate font-mono text-xs text-muted" :title="environment.rootPath">{{
+            environment.rootPath
+          }}</code>
+          <label
+            :for="`env-provider-${environment.id}`"
+            class="flex items-center gap-2 text-xs text-muted"
+          >
+            Provider
+            <ProviderSelect
+              :id="`env-provider-${environment.id}`"
+              :model-value="environment.defaultProvider"
+              :choices="providers.choices.value"
+              allow-unset
+              class="!py-0.5 text-xs text-foreground"
+              :title="'Provider used for new machines; existing machines keep theirs.'"
+              @update:model-value="changeProvider"
+            />
+          </label>
+        </div>
       </div>
       <div class="flex items-center gap-1.5">
         <Button
@@ -89,6 +110,14 @@ async function run(action: (id: string) => Promise<unknown>) {
           <FileCode /> {{ environment.vagrantfilePath ? 'Vagrantfile' : 'Create Vagrantfile' }}
         </Button>
         <Button
+          variant="ghost"
+          size="sm"
+          :disabled="busy || !environment.vagrantfilePath"
+          @click="run(operations.validate)"
+        >
+          <FileCheck /> Validate
+        </Button>
+        <Button
           variant="secondary"
           size="sm"
           :disabled="busy || !environment.vagrantfilePath"
@@ -99,47 +128,71 @@ async function run(action: (id: string) => Promise<unknown>) {
           />
           Refresh status
         </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          :disabled="busy || !environment.vagrantfilePath"
-          @click="run(operations.validate)"
-        >
-          <FileCheck /> Validate
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          class="size-8 text-muted"
-          :aria-label="`Remove environment ${environment.name}`"
-          @click="$emit('remove')"
-        >
-          <Trash2 />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger as-child>
+            <Button
+              variant="ghost"
+              size="icon"
+              class="size-8"
+              :aria-label="`More actions for environment ${environment.name}`"
+            >
+              <Ellipsis />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem destructive @select="$emit('remove')">
+              <Trash2 /> Remove environment…
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
-    </div>
+    </header>
 
-    <p v-if="!environment.vagrantfilePath" class="mt-2 text-xs text-muted">
+    <p v-if="!environment.vagrantfilePath" class="px-4 py-3 text-xs text-muted">
       No Vagrantfile detected in this folder, so Vagrant commands are disabled. Use Create
       Vagrantfile to add one.
     </p>
-
     <EnvironmentMachines v-if="status" :environment="environment" :status="status" />
-    <p v-else-if="environment.vagrantfilePath" class="mt-3 text-xs text-muted">
+    <p v-else-if="environment.vagrantfilePath" class="px-4 py-3 text-xs text-muted">
       Machine state hasn't been checked yet. Use Refresh status to ask Vagrant.
     </p>
 
-    <button
-      v-if="latest"
-      type="button"
-      class="mt-2 flex items-center gap-2 text-xs text-muted hover:text-foreground"
-      @click="operations.open(latest.id)"
+    <footer
+      v-if="status || latest || pending.length || actionError"
+      class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t px-4 py-2 text-[11px] text-muted"
     >
-      <ScrollText class="size-3.5" aria-hidden="true" />
-      Last: {{ operationLabel(latest.operationType) }}
-      <OperationStatusBadge :status="latest.status" />
-      <span class="underline-offset-2 hover:underline">View output</span>
-    </button>
-    <p v-if="actionError" class="mt-2 text-xs text-status-failed" role="alert">{{ actionError }}</p>
+      <span class="flex flex-wrap items-center gap-1.5">
+        <span v-if="status">Reported by Vagrant {{ relativeTime(status.observedAt) }}</span>
+        <template v-if="pending.length">
+          <span v-if="status" aria-hidden="true">·</span>
+          <LoaderCircle class="size-3 animate-spin" aria-hidden="true" />
+          <template v-for="(op, i) in pending" :key="op.id">
+            <span v-if="i > 0" aria-hidden="true">·</span>
+            <button
+              type="button"
+              class="hover:text-foreground hover:underline"
+              @click="operations.open(op.id)"
+            >
+              {{ operationLabel(op.operationType) }}
+              {{ op.status === 'queued' ? '(queued)' : '' }}
+            </button>
+          </template>
+        </template>
+      </span>
+      <button
+        v-if="latest"
+        type="button"
+        class="flex items-center gap-2 hover:text-foreground"
+        @click="operations.open(latest.id)"
+      >
+        <ScrollText class="size-3.5" aria-hidden="true" />
+        Last: {{ operationLabel(latest.operationType) }}
+        <OperationStatusBadge :status="latest.status" />
+        <span class="underline-offset-2 hover:underline">View output</span>
+      </button>
+      <p v-if="actionError" class="w-full text-xs text-status-failed" role="alert">
+        {{ actionError }}
+      </p>
+    </footer>
   </li>
 </template>

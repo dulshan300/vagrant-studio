@@ -129,41 +129,21 @@ async function run(action: LifecycleAction, names: string[]) {
 </script>
 
 <template>
-  <div class="mt-3 rounded-md border">
-    <div
-      class="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-1.5 text-[11px] text-muted"
-    >
-      <span>Reported by Vagrant {{ relativeTime(status.observedAt) }}</span>
-      <span v-if="pending.length" class="flex items-center gap-1.5">
-        <LoaderCircle class="size-3 animate-spin" aria-hidden="true" />
-        <template v-for="(op, i) in pending" :key="op.id">
-          <span v-if="i > 0">·</span>
-          <button
-            type="button"
-            class="hover:text-foreground hover:underline"
-            @click="operations.open(op.id)"
-          >
-            {{ operationLabel(op.operationType) }}
-            {{ op.status === 'queued' ? '(queued)' : '' }}
-          </button>
-        </template>
-      </span>
-    </div>
-
-    <p v-if="status.error" class="flex items-start gap-2 px-3 py-2 text-xs text-status-failed">
+  <div>
+    <p v-if="status.error" class="flex items-start gap-2 px-4 py-3 text-xs text-status-failed">
       <CircleAlert class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
       <span class="whitespace-pre-wrap">{{ status.error.message }}</span>
     </p>
-    <p v-else-if="!machines.length" class="px-3 py-2 text-xs text-muted">
+    <p v-else-if="!machines.length" class="px-4 py-3 text-xs text-muted">
       Vagrant reported no machines.
     </p>
     <template v-else>
       <div
-        class="flex flex-wrap items-center gap-1 border-b bg-surface-muted/50 px-3 py-1.5"
+        class="flex flex-wrap items-center gap-1 border-b bg-surface-muted/40 px-4 py-1.5"
         role="toolbar"
         :aria-label="`Actions for ${scopeLabel.toLowerCase()}`"
       >
-        <label class="mr-2 flex items-center gap-2 text-xs">
+        <label class="mr-3 flex items-center gap-2 text-xs">
           <input
             type="checkbox"
             :checked="allSelected"
@@ -178,7 +158,7 @@ async function run(action: LifecycleAction, names: string[]) {
           :key="action"
           variant="ghost"
           size="sm"
-          :class="action === 'destroy' ? 'h-7 px-2 text-status-failed' : 'h-7 px-2'"
+          :class="action === 'destroy' ? 'ml-auto h-7 px-2 text-status-failed' : 'h-7 px-2'"
           :disabled="!allowed(action)"
           :title="ACTION_META[action].hint"
           @click="run(action, targets)"
@@ -191,42 +171,44 @@ async function run(action: LifecycleAction, names: string[]) {
         <li
           v-for="m in machines"
           :key="m.name"
-          class="flex items-center justify-between gap-3 px-3 py-2"
+          class="grid grid-cols-[auto_minmax(0,1fr)_auto_4rem] items-center gap-3 px-4 py-2.5"
           :title="m.stateLong ?? undefined"
         >
-          <label class="flex min-w-0 items-center gap-2">
-            <input
-              v-model="selected"
-              type="checkbox"
-              :value="m.name"
-              :aria-label="`Select ${m.name}`"
-            />
-            <span class="truncate font-mono text-xs">{{ m.name }}</span>
-          </label>
-          <button
-            v-if="lastProvisioning[m.name]"
-            type="button"
-            :class="[
-              'flex min-w-0 items-center gap-1 text-[11px] hover:underline',
-              lastProvisioning[m.name]!.status === 'succeeded'
-                ? 'text-muted'
-                : 'text-status-failed',
-            ]"
-            :title="`Last provisioning ${relativeTime(lastProvisioning[m.name]!.at)}; open its output`"
-            @click="operations.open(lastProvisioning[m.name]!.operationId)"
-          >
-            <CircleCheck
-              v-if="lastProvisioning[m.name]!.status === 'succeeded'"
-              class="size-3 shrink-0"
-              aria-hidden="true"
-            />
-            <CircleX v-else class="size-3 shrink-0" aria-hidden="true" />
-            <span class="truncate">
-              {{ lastProvisioning[m.name]!.text }} ·
-              {{ relativeTime(lastProvisioning[m.name]!.at) }}
-            </span>
-          </button>
-          <span class="flex-1" />
+          <input
+            v-model="selected"
+            type="checkbox"
+            :value="m.name"
+            :aria-label="`Select ${m.name}`"
+          />
+          <div class="min-w-0">
+            <div class="truncate font-mono text-sm font-medium">{{ m.name }}</div>
+            <div class="flex min-w-0 items-center gap-1.5 text-[11px] text-muted">
+              <span class="shrink-0">{{ m.provider ?? 'provider unknown' }}</span>
+              <template v-if="lastProvisioning[m.name]">
+                <span aria-hidden="true">·</span>
+                <button
+                  type="button"
+                  :class="[
+                    'flex min-w-0 items-center gap-1 hover:underline',
+                    lastProvisioning[m.name]!.status === 'succeeded' ? '' : 'text-status-failed',
+                  ]"
+                  :title="`Last provisioning ${relativeTime(lastProvisioning[m.name]!.at)}; open its output`"
+                  @click="operations.open(lastProvisioning[m.name]!.operationId)"
+                >
+                  <CircleCheck
+                    v-if="lastProvisioning[m.name]!.status === 'succeeded'"
+                    class="size-3 shrink-0"
+                    aria-hidden="true"
+                  />
+                  <CircleX v-else class="size-3 shrink-0" aria-hidden="true" />
+                  <span class="truncate">
+                    {{ lastProvisioning[m.name]!.text }} ·
+                    {{ relativeTime(lastProvisioning[m.name]!.at) }}
+                  </span>
+                </button>
+              </template>
+            </div>
+          </div>
           <span class="flex items-center gap-2">
             <span
               v-if="pendingFor(m.name).length"
@@ -235,8 +217,9 @@ async function run(action: LifecycleAction, names: string[]) {
               <LoaderCircle class="size-3 animate-spin" aria-hidden="true" />
               {{ operationLabel(pendingFor(m.name)[0]!.operationType) }}
             </span>
-            <span class="text-[11px] text-muted">{{ m.provider }}</span>
             <StatusBadge :state="m.ui" />
+          </span>
+          <span class="flex items-center justify-end gap-0.5">
             <Button
               v-if="m.ui === 'running' && m.capabilities.includes('ssh')"
               variant="ghost"
@@ -263,7 +246,7 @@ async function run(action: LifecycleAction, names: string[]) {
         </li>
       </ul>
     </template>
-    <p v-if="actionError" class="border-t px-3 py-2 text-xs text-status-failed" role="alert">
+    <p v-if="actionError" class="border-t px-4 py-2 text-xs text-status-failed" role="alert">
       {{ actionError }}
     </p>
 
