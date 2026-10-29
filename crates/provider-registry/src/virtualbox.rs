@@ -2,7 +2,9 @@
 //! conflicts that stop machines from running well (Hyper-V on Windows, the
 //! kernel module on Linux; risk R8).
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+use serde::Serialize;
 
 use vagrant_studio_platform::HostOs;
 use vagrant_studio_vagrant_adapter::readiness::{Finding, Level, install_hint};
@@ -33,8 +35,8 @@ impl ProviderAdapter for VirtualBox {
     }
 }
 
-async fn detect(ctx: &Context<'_>) -> Detection {
-    let exe = tools::find(
+fn find_vboxmanage(ctx: &Context<'_>) -> Option<PathBuf> {
+    tools::find(
         ctx,
         "VBoxManage",
         &[
@@ -45,8 +47,11 @@ async fn detect(ctx: &Context<'_>) -> Detection {
             (HostOs::Linux, "/usr/bin/VBoxManage"),
             (HostOs::Linux, "/usr/lib/virtualbox/VBoxManage"),
         ],
-    );
-    let Some(exe) = exe else {
+    )
+}
+
+async fn detect(ctx: &Context<'_>) -> Detection {
+    let Some(exe) = find_vboxmanage(ctx) else {
         return Detection::new(
             false,
             None,
@@ -141,5 +146,70 @@ fn kernel_module_finding(ctx: &Context<'_>) -> Finding {
             "The VirtualBox kernel module (vboxdrv) isn't loaded, so machines can't start.",
             "Run `sudo /sbin/vboxconfig` to build and load it. With Secure Boot enabled, the module must be signed first.",
         )
+    }
+}
+
+/// A host network adapter VirtualBox can bridge to.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BridgedInterface {
+    /// The name `bridge:` must match (Vagrant compares it without case).
+    pub name: String,
+    pub wireless: bool,
+}
+
+/// Adapters a public network can bridge to, as Vagrant sees them: `VBoxManage
+/// list bridgedifs` without those whose status is `Down` or `Unknown`.
+/// `None` when VirtualBox isn't installed or the list couldn't be read.
+pub async fn bridged_interfaces(ctx: &Context<'_>) -> Option<Vec<BridgedInterface>> {
+    let exe = find_vboxmanage(ctx)?;
+    let output = tools::run(ctx, &exe, &["list", "bridgedifs"])
+        .await
+        .filter(|o| o.success)?;
+    Some(parse_bridged_interfaces(&output.stdout))
+}
+
+fn parse_bridged_interfaces(text: &str) -> Vec<BridgedInterface> {
+    let mut out = Vec::new();
+    for block in text.replace("\r\n", "\n").split("\n\n") {
+        let field = |key: &str| {
+            block.lines().find_map(|l| {
+                l.strip_prefix(key)
+                    .and_then(|rest| rest.strip_prefix(':'))
+                    .map(str::trim)
+            })
+        };
+        let Some(name) = field("Name").filter(|n| !n.is_empty()) else {
+            continue;
+        };
+        if matches!(field("Status"), Some("Down" | "Unknown")) {
+            continue;
+        }
+        out.push(BridgedInterface {
+            name: name.to_owned(),
+            wireless: field("Wireless") == Some("Yes"),
+        });
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bridged_interfaces_skip_adapters_that_are_down() {
+        let text = include_str!(
+            "../../../fixtures/command-output/windows-vagrant-2.4.9/virtualbox-list-bridgedifs.txt"
+        );
+        assert!(text.contains("\r\n"));
+        assert_eq!(
+            parse_bridged_interfaces(text),
+            vec![BridgedInterface {
+                name: "Intel(R) Wi-Fi 6 AX200 160MHz".into(),
+                wireless: true,
+            }]
+        );
+        assert!(parse_bridged_interfaces("").is_empty());
     }
 }

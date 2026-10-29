@@ -318,6 +318,10 @@ mod tests {
                         private_networks: vec![PrivateNetwork {
                             ip: Some("192.168.56.30".into()),
                         }],
+                        public_networks: vec![PublicNetwork {
+                            ip: Some("192.168.1.230".into()),
+                            bridge: Some("Intel(R) Wi-Fi 6 AX200 160MHz".into()),
+                        }],
                         forwarded_ports: vec![
                             ForwardedPort {
                                 guest: 80,
@@ -359,6 +363,10 @@ mod tests {
                     settings: MachineSettings {
                         box_name: Some("bento/debian-12".into()),
                         private_networks: vec![PrivateNetwork { ip: None }],
+                        public_networks: vec![PublicNetwork {
+                            ip: None,
+                            bridge: None,
+                        }],
                         providers: vec![ProviderSettings {
                             provider: kind,
                             cpus: None,

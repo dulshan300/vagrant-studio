@@ -45,6 +45,8 @@ pub struct MachineSettings {
     #[serde(default)]
     pub private_networks: Vec<PrivateNetwork>,
     #[serde(default)]
+    pub public_networks: Vec<PublicNetwork>,
+    #[serde(default)]
     pub forwarded_ports: Vec<ForwardedPort>,
     #[serde(default)]
     pub synced_folders: Vec<SyncedFolder>,
@@ -59,6 +61,19 @@ pub struct MachineSettings {
 #[serde(rename_all = "camelCase")]
 pub struct PrivateNetwork {
     pub ip: Option<String>,
+}
+
+/// `vm.network "public_network"` (bridged): a static `ip`, or DHCP from the
+/// host's network when unset. `bridge` names the host adapter; VirtualBox
+/// asks interactively when it is unset and several adapters are up, which
+/// fails without a terminal. VMware Desktop ignores it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PublicNetwork {
+    #[serde(default)]
+    pub ip: Option<String>,
+    #[serde(default)]
+    pub bridge: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -24,6 +24,7 @@ export interface MachineSettings {
   box: string | null
   hostname: string | null
   privateNetworks: PrivateNetwork[]
+  publicNetworks: PublicNetwork[]
   forwardedPorts: ForwardedPort[]
   syncedFolders: SyncedFolder[]
   providers: ProviderSettings[]
@@ -33,6 +34,15 @@ export interface MachineSettings {
 /** A static IP, or DHCP when `ip` is null. */
 export interface PrivateNetwork {
   ip: string | null
+}
+
+/**
+ * A bridged network on the host's LAN: a static IP, or DHCP when `ip` is null.
+ * `bridge` names the host adapter (VirtualBox only).
+ */
+export interface PublicNetwork {
+  ip: string | null
+  bridge: string | null
 }
 
 export interface ForwardedPort {
@@ -117,4 +127,16 @@ export interface SaveVagrantfileOutcome {
 export interface GeneratedVagrantfile {
   content: string | null
   errors: FieldError[]
+}
+
+/** Mirrors `vagrant_studio_provider_registry::HostPort`. */
+export interface HostPort {
+  hostIp: string | null
+  port: number
+}
+
+/** Mirrors `vagrant_studio_provider_registry::BridgedInterface`. */
+export interface BridgedInterface {
+  name: string
+  wireless: boolean
 }

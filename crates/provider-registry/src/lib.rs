@@ -8,6 +8,7 @@
 
 mod compat;
 mod docker;
+mod ports;
 mod probe;
 mod tools;
 mod virtualbox;
@@ -30,8 +31,9 @@ use vagrant_studio_vagrant_adapter::readiness::{
 
 pub use compat::{VirtualBoxSupport, virtualbox_support};
 pub use docker::Docker;
+pub use ports::{HostPort, ports_in_use};
 pub use probe::{HostProbe, SystemProbe};
-pub use virtualbox::VirtualBox;
+pub use virtualbox::{BridgedInterface, VirtualBox, bridged_interfaces};
 pub use vmware::VmwareDesktop;
 
 /// What a provider can do through Vagrant, as listed in

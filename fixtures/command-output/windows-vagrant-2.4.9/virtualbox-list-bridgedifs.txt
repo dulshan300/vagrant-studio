@@ -1,0 +1,39 @@
+Name:            Intel(R) Wi-Fi 6 AX200 160MHz
+GUID:            00000001-0000-4000-8000-000000000000
+DHCP:            Enabled
+IPAddress:       192.0.2.4
+NetworkMask:     255.255.255.0
+IPV6Address:     
+IPV6NetworkMaskPrefixLength: 0
+HardwareAddress: 02:00:00:00:00:06
+MediumType:      Ethernet
+Wireless:        Yes
+Status:          Up
+VBoxNetworkName: HostInterfaceNetworking-Intel(R) Wi-Fi 6 AX200 160MHz
+
+Name:            Intel(R) Ethernet Connection (7) I219-V
+GUID:            00000002-0000-4000-8000-000000000000
+DHCP:            Enabled
+IPAddress:       192.0.2.5
+NetworkMask:     255.255.0.0
+IPV6Address:     fe80::db8:1
+IPV6NetworkMaskPrefixLength: 64
+HardwareAddress: 02:00:00:00:00:07
+MediumType:      Ethernet
+Wireless:        No
+Status:          Down
+VBoxNetworkName: HostInterfaceNetworking-Intel(R) Ethernet Connection (7) I219-V
+
+Name:            Hyper-V Virtual Ethernet Container Adapter
+GUID:            00000003-0000-4000-8000-000000000000
+DHCP:            Disabled
+IPAddress:       0.0.0.0
+NetworkMask:     0.0.0.0
+IPV6Address:     
+IPV6NetworkMaskPrefixLength: 0
+HardwareAddress: 02:00:00:00:00:08
+MediumType:      Ethernet
+Wireless:        No
+Status:          Down
+VBoxNetworkName: HostInterfaceNetworking-Hyper-V Virtual Ethernet Container Adapter
+

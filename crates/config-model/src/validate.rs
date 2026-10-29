@@ -105,6 +105,25 @@ fn settings(errors: &mut Vec<FieldError>, path: &str, s: &MachineSettings) {
             );
         }
     }
+    for (i, n) in s.public_networks.iter().enumerate() {
+        let at = format!("{path}.publicNetworks.{i}");
+        if let Some(ip) = &n.ip
+            && ip.parse::<IpAddr>().is_err()
+        {
+            err(
+                format!("{at}.ip"),
+                "Enter an IP address on your network, such as 192.168.1.50.",
+            );
+        }
+        if let Some(bridge) = &n.bridge
+            && !plain_text(bridge)
+        {
+            err(
+                format!("{at}.bridge"),
+                "Enter the host network adapter's name.",
+            );
+        }
+    }
     for (i, p) in s.forwarded_ports.iter().enumerate() {
         let at = format!("{path}.forwardedPorts.{i}");
         if p.guest == 0 {

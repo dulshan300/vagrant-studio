@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   cloneModel,
+  emptySettings,
   errorsByPath,
+  hostPortKey,
   move,
   newForwardedPort,
   newMachine,
@@ -9,6 +11,7 @@ import {
   optionalText,
   sameModel,
   starterModel,
+  tcpHostPorts,
 } from './vagrantfile'
 
 describe('starterModel', () => {
@@ -77,5 +80,33 @@ describe('model helpers', () => {
     expect(optionalNumber('')).toBeNull()
     expect(optionalNumber('2.5')).toBeNull()
     expect(optionalNumber(' 2048 ')).toBe(2048)
+  })
+})
+
+describe('tcpHostPorts', () => {
+  it('lists distinct TCP host ports of all machines, skipping UDP and unset ports', () => {
+    const model = starterModel(null)
+    model.defaults.forwardedPorts.push(
+      { guest: 80, host: 8080, hostIp: null, protocol: null },
+      { guest: 53, host: 5353, hostIp: null, protocol: 'udp' },
+      { guest: 1, host: 0, hostIp: null, protocol: null },
+    )
+    model.machines.push({
+      name: 'web',
+      primary: false,
+      autostart: true,
+      settings: {
+        ...emptySettings(),
+        forwardedPorts: [
+          { guest: 80, host: 8080, hostIp: ' ', protocol: 'tcp' },
+          { guest: 443, host: 8443, hostIp: '127.0.0.1', protocol: null },
+        ],
+      },
+    })
+    expect(tcpHostPorts(model)).toEqual([
+      { hostIp: null, port: 8080 },
+      { hostIp: '127.0.0.1', port: 8443 },
+    ])
+    expect(hostPortKey('127.0.0.1', 8443)).toBe('127.0.0.1:8443')
   })
 })

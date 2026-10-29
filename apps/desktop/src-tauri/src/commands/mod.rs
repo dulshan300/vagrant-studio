@@ -1,6 +1,7 @@
 pub mod app;
 pub mod boxes;
 pub mod error;
+pub mod network;
 pub mod operations;
 pub mod projects;
 pub mod vagrantfile;

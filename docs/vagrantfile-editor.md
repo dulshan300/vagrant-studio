@@ -22,6 +22,7 @@ Vagrant.configure("2") do |config|           # "2" or 2; any block variable name
   config.vm.box = "…"
   config.vm.hostname = "…"
   config.vm.network "private_network", ip: "…"      # or type: "dhcp"
+  config.vm.network "public_network", ip: "…", bridge: "…"  # each optional; type: "dhcp" without ip
   config.vm.network "forwarded_port", guest: 80, host: 8080, host_ip: "…", protocol: "udp"
   config.vm.synced_folder "host", "guest", disabled: true
   config.vm.provider "virtualbox" do |vb|           # or :virtualbox
@@ -45,7 +46,8 @@ Everything else is refused, including:
 - other `config.*` namespaces (`config.ssh`, `config.vagrant`, …)
 - other `vm.*` settings (`box_version`, `box_check_update`, …)
 - other provider options (`vb.gui`, `vb.customize`, …) and other providers
-- public networks
+- public network options other than `ip:` and `bridge:` (an array of bridges,
+  `use_dhcp_assigned_default_route:`, …)
 - other provisioners and options (`auto_correct:`, `id:`, …)
 - variables, conditionals, loops, `require`
 - string interpolation, numeric escapes
@@ -59,6 +61,26 @@ The model stores **values as Ruby evaluates them**. For example, an inline
 script is the exact string Vagrant receives, so `<<-` keeps indentation and
 `<<~` strips it. Two differently formatted files with the same meaning give
 the same model.
+
+## Network settings (Phase 6)
+
+- **Public networks** are bridged to the host's LAN, with DHCP or a static IP.
+  `bridge:` names the host adapter, and the form suggests the adapters from
+  `VBoxManage list bridgedifs` that Vagrant would consider (status not `Down`
+  or `Unknown`). Without `bridge:`, VirtualBox picks the only active adapter,
+  but **asks interactively when there are several**. Vagrant Studio runs
+  Vagrant without a terminal, so `up` then fails (`UIExpectsTTY`), and the
+  form warns about an empty adapter. The VMware Desktop plugin (3.0.5)
+  ignores `bridge:` and never asks. (Read in Vagrant 2.4.9's
+  `plugins/providers/virtualbox/action/network.rb` and the plugin's
+  `action/network.rb`.)
+- **Host-port check**: while the visual editor is open, every forwarded TCP
+  host port is tested the way Vagrant tests it before `up` (a TCP connect to
+  the host IP, or to loopback for all interfaces; UDP isn't checked). A port
+  that answers gets a warning: unless it is the environment's own running
+  machine, `up` fails with a port collision. Within one Vagrantfile, a host
+  port forwarded twice is already a validation error. Ports declared by
+  *other* environments are a Phase 7 item (cross-project port warnings).
 
 ## Generated files
 

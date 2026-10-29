@@ -6,12 +6,14 @@ import FormField from '@/components/ui/form/FormField.vue'
 import TextInput from '@/components/ui/form/TextInput.vue'
 import {
   PROVIDER_LABELS,
+  hostPortKey,
   move,
   newProvisioner,
   optionalNumber,
   optionalText,
 } from '@/lib/vagrantfile'
 import type {
+  BridgedInterface,
   ForwardedPort,
   MachineSettings,
   ProviderKind,
@@ -29,6 +31,10 @@ const props = defineProps<{
   /** Values from the shared settings, shown as placeholders for a machine. */
   inherited?: MachineSettings | null
   newForwardedPort: () => ForwardedPort
+  /** Host adapters VirtualBox can bridge to, suggested for public networks. */
+  bridges?: BridgedInterface[]
+  /** Host ports something on this computer already listens on, by `hostPortKey`. */
+  portsInUse?: Record<string, boolean>
 }>()
 
 const err = (field: string) => props.errors[`${props.path}.${field}`] ?? null
@@ -42,6 +48,10 @@ const unusedProvider = computed(() =>
 const numberInput = 'w-full rounded-md border bg-surface px-2 py-1.5 text-sm'
 const selectInput = 'rounded-md border bg-surface px-2 py-1.5 text-sm'
 const sectionTitle = 'flex items-center justify-between gap-2 text-sm font-medium'
+
+function portInUse(p: ForwardedPort): boolean {
+  return p.protocol !== 'udp' && !!props.portsInUse?.[hostPortKey(p.hostIp, p.host)]
+}
 
 function invalid(field: string) {
   return err(field) ? 'border-status-failed' : ''
@@ -196,6 +206,79 @@ function parsePrivileged(value: string): boolean | null {
 
     <section class="space-y-2">
       <h3 :class="sectionTitle">
+        Public networks
+        <Button
+          variant="ghost"
+          size="sm"
+          @click="settings.publicNetworks.push({ ip: null, bridge: bridges?.[0]?.name ?? null })"
+        >
+          <Plus /> Add
+        </Button>
+      </h3>
+      <p v-if="settings.publicNetworks.length" class="text-xs text-muted">
+        Bridged to your local network, so other computers there can reach the machine.
+      </p>
+      <datalist v-if="bridges?.length" :id="id('bridges')">
+        <option v-for="b in bridges" :key="b.name" :value="b.name" />
+      </datalist>
+      <div v-for="(n, i) in settings.publicNetworks" :key="i" class="space-y-1">
+        <div class="grid grid-cols-[9rem_minmax(0,1fr)_minmax(0,1fr)_auto] items-start gap-2">
+          <select
+            :value="n.ip === null ? 'dhcp' : 'static'"
+            :class="selectInput"
+            :aria-label="`Public network ${i + 1} addressing`"
+            @change="n.ip = ($event.target as HTMLSelectElement).value === 'dhcp' ? null : ''"
+          >
+            <option value="dhcp">DHCP</option>
+            <option value="static">Static IP</option>
+          </select>
+          <TextInput
+            v-if="n.ip !== null"
+            v-model="n.ip"
+            placeholder="192.168.1.50"
+            :aria-label="`Public network ${i + 1} IP address`"
+            :invalid="!!err(`publicNetworks.${i}.ip`)"
+            spellcheck="false"
+          />
+          <p v-else class="py-2 text-xs text-muted">Your network's DHCP server assigns one.</p>
+          <TextInput
+            :model-value="n.bridge ?? ''"
+            :list="bridges?.length ? id('bridges') : undefined"
+            placeholder="Host adapter (VirtualBox)"
+            :aria-label="`Public network ${i + 1} host adapter`"
+            :invalid="!!err(`publicNetworks.${i}.bridge`)"
+            spellcheck="false"
+            @update:model-value="n.bridge = optionalText($event)"
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            class="size-8 text-muted"
+            :aria-label="`Remove public network ${i + 1}`"
+            @click="settings.publicNetworks.splice(i, 1)"
+          >
+            <Trash2 />
+          </Button>
+        </div>
+        <p
+          v-for="field in ['ip', 'bridge']"
+          v-show="err(`publicNetworks.${i}.${field}`)"
+          :key="field"
+          class="text-xs text-status-failed"
+          role="alert"
+        >
+          {{ err(`publicNetworks.${i}.${field}`) }}
+        </p>
+        <p v-if="n.bridge === null" class="text-xs text-status-transition">
+          No host adapter set. With VirtualBox, if more than one adapter is active Vagrant asks
+          which one to use, and Vagrant Studio can't answer that question, so starting the machine
+          fails. Pick an adapter unless the machine uses VMware Desktop, which ignores this setting.
+        </p>
+      </div>
+    </section>
+
+    <section class="space-y-2">
+      <h3 :class="sectionTitle">
         Forwarded ports
         <Button
           variant="ghost"
@@ -268,6 +351,10 @@ function parsePrivileged(value: string): boolean | null {
           role="alert"
         >
           {{ err(`forwardedPorts.${i}.${field}`) }}
+        </p>
+        <p v-if="portInUse(p)" class="text-xs text-status-transition">
+          Something on this computer already uses host port {{ p.host }}. Unless it is this
+          environment's own running machine, starting the machine fails with a port collision.
         </p>
       </div>
     </section>

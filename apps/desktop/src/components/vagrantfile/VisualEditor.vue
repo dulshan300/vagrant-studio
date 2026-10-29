@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ArrowDown, ArrowUp, Plus, Trash2 } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import FormField from '@/components/ui/form/FormField.vue'
 import TextInput from '@/components/ui/form/TextInput.vue'
 import MachineSettingsForm from './MachineSettingsForm.vue'
-import { move, newForwardedPort, newMachine } from '@/lib/vagrantfile'
+import { hostPortKey, move, newForwardedPort, newMachine, tcpHostPorts } from '@/lib/vagrantfile'
 import { cn } from '@/lib/utils'
-import type { VagrantConfig } from '@/types/vagrantfile'
+import { hasBackend } from '@/services/app'
+import { networkApi } from '@/services/network'
+import type { BridgedInterface, VagrantConfig } from '@/types/vagrantfile'
 
 /** Forms for the supported Vagrantfile subset (crates/config-model). */
 const config = defineModel<VagrantConfig>({ required: true })
@@ -44,6 +46,33 @@ function moveMachine(delta: -1 | 1) {
   move(config.value.machines, selected.value, delta)
   if (to >= 0 && to < config.value.machines.length) selected.value = to
 }
+
+// Host facts for the network forms; failures only mean no suggestions or warnings.
+const bridges = ref<BridgedInterface[]>([])
+const portsInUse = ref<Record<string, boolean>>({})
+onMounted(async () => {
+  if (hasBackend()) bridges.value = await networkApi.listBridgedInterfaces().catch(() => [])
+})
+
+const PORT_CHECK_DELAY_MS = 500
+let portTimer: ReturnType<typeof setTimeout> | undefined
+watch(
+  () => JSON.stringify(tcpHostPorts(config.value)),
+  () => {
+    clearTimeout(portTimer)
+    if (!hasBackend()) return
+    portTimer = setTimeout(async () => {
+      const ports = tcpHostPorts(config.value)
+      const result = await networkApi.checkHostPorts(ports).catch(() => null)
+      if (!result) return
+      portsInUse.value = Object.fromEntries(
+        ports.map((p, i) => [hostPortKey(p.hostIp, p.port), result[i] ?? false]),
+      )
+    }, PORT_CHECK_DELAY_MS)
+  },
+  { immediate: true },
+)
+onBeforeUnmount(() => clearTimeout(portTimer))
 
 const navItem = (active: boolean) =>
   cn(
@@ -174,6 +203,8 @@ const navItem = (active: boolean) =>
           :errors="errors"
           :inherited="config.defaults"
           :new-forwarded-port="() => newForwardedPort(config)"
+          :bridges="bridges"
+          :ports-in-use="portsInUse"
         />
       </template>
       <MachineSettingsForm
@@ -184,6 +215,8 @@ const navItem = (active: boolean) =>
         id-prefix="shared"
         :errors="errors"
         :new-forwarded-port="() => newForwardedPort(config)"
+        :bridges="bridges"
+        :ports-in-use="portsInUse"
       />
     </div>
   </div>

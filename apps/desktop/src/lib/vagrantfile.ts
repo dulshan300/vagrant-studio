@@ -1,6 +1,7 @@
 import type {
   FieldError,
   ForwardedPort,
+  HostPort,
   MachineDefinition,
   MachineSettings,
   ProviderKind,
@@ -20,6 +21,7 @@ export function emptySettings(): MachineSettings {
     box: null,
     hostname: null,
     privateNetworks: [],
+    publicNetworks: [],
     forwardedPorts: [],
     syncedFolders: [],
     providers: [],
@@ -105,4 +107,25 @@ export function optionalText(value: string): string | null {
 export function optionalNumber(value: string): number | null {
   const trimmed = value.trim()
   return /^\d+$/.test(trimmed) ? Number(trimmed) : null
+}
+
+/** Identifies a host port for the in-use check. */
+export function hostPortKey(hostIp: string | null, port: number): string {
+  return `${hostIp?.trim() ?? ''}:${port}`
+}
+
+/**
+ * The distinct TCP host ports a model forwards. Vagrant checks only TCP
+ * ports for collisions before `up`.
+ */
+export function tcpHostPorts(config: VagrantConfig): HostPort[] {
+  const out = new Map<string, HostPort>()
+  for (const settings of [config.defaults, ...config.machines.map((m) => m.settings)]) {
+    for (const p of settings.forwardedPorts) {
+      if (p.protocol === 'udp' || !(p.host >= 1 && p.host <= 65535)) continue
+      const hostIp = p.hostIp?.trim() || null
+      out.set(hostPortKey(hostIp, p.host), { hostIp, port: p.host })
+    }
+  }
+  return [...out.values()]
 }

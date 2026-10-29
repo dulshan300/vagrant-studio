@@ -273,6 +273,23 @@ impl Parser<'_> {
                 }
                 settings.private_networks.push(PrivateNetwork { ip });
             }
+            "public_network" => {
+                let (mut ip, mut bridge, mut dhcp) = (None, None, false);
+                for a in args {
+                    match (a.key.as_str(), a.value) {
+                        ("ip", Value::Str(s)) => ip = Some(s),
+                        ("bridge", Value::Str(s)) => bridge = Some(s),
+                        ("type", Value::Str(s)) if s == "dhcp" => dhcp = true,
+                        (key, _) => return Err(unknown_option(&a.line, key, "public_network")),
+                    }
+                }
+                if ip.is_some() && dhcp {
+                    return Err(self.unsupported_prev(
+                        "a public network can't have both `ip:` and `type: \"dhcp\"`",
+                    ));
+                }
+                settings.public_networks.push(PublicNetwork { ip, bridge });
+            }
             "forwarded_port" => {
                 let (mut guest, mut host, mut host_ip, mut protocol) = (None, None, None, None);
                 for a in args {

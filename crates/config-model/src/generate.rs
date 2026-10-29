@@ -134,6 +134,16 @@ fn settings(w: &mut Writer, d: usize, v: &str, s: &MachineSettings) {
         };
         w.line(d, &format!("{v}.vm.network \"private_network\", {opt}"));
     }
+    for n in &s.public_networks {
+        let mut line = format!("{v}.vm.network \"public_network\"");
+        if let Some(ip) = &n.ip {
+            line.push_str(&format!(", ip: {}", ruby_string(ip)));
+        }
+        if let Some(bridge) = &n.bridge {
+            line.push_str(&format!(", bridge: {}", ruby_string(bridge)));
+        }
+        w.line(d, &line);
+    }
     for p in &s.forwarded_ports {
         let mut line = format!(
             "{v}.vm.network \"forwarded_port\", guest: {}, host: {}",

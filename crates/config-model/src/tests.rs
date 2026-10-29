@@ -10,6 +10,7 @@ Vagrant.configure("2") do |config|
   config.vm.define "web", primary: true do |web|
     web.vm.hostname = "web"
     web.vm.network "private_network", ip: "192.168.56.10"
+    web.vm.network "public_network", ip: "192.168.1.60", bridge: "Intel(R) Wi-Fi 6 AX200 160MHz"
     web.vm.network "forwarded_port", guest: 80, host: 8080, host_ip: "127.0.0.1"
     web.vm.provider "virtualbox" do |vb|
       vb.cpus = 1
@@ -27,6 +28,7 @@ Vagrant.configure("2") do |config|
   config.vm.define "db", autostart: false do |db|
     db.vm.box = "bento/debian-12"
     db.vm.network "private_network", type: "dhcp"
+    db.vm.network "public_network"
     db.vm.network "forwarded_port",
       guest: 53, host: 5353, protocol: "udp"
     db.vm.provision "shell", path: "scripts/db.sh", run: "always", privileged: false
@@ -54,6 +56,10 @@ fn multi_model() -> VagrantConfig {
                     hostname: Some("web".into()),
                     private_networks: vec![PrivateNetwork {
                         ip: Some("192.168.56.10".into()),
+                    }],
+                    public_networks: vec![PublicNetwork {
+                        ip: Some("192.168.1.60".into()),
+                        bridge: Some("Intel(R) Wi-Fi 6 AX200 160MHz".into()),
                     }],
                     forwarded_ports: vec![ForwardedPort {
                         guest: 80,
@@ -90,6 +96,10 @@ fn multi_model() -> VagrantConfig {
                 settings: MachineSettings {
                     box_name: Some("bento/debian-12".into()),
                     private_networks: vec![PrivateNetwork { ip: None }],
+                    public_networks: vec![PublicNetwork {
+                        ip: None,
+                        bridge: None,
+                    }],
                     forwarded_ports: vec![ForwardedPort {
                         guest: 53,
                         host: 5353,
@@ -282,7 +292,7 @@ fn comments_are_reported_as_lost() {
     assert!(a.model.is_some());
     assert_eq!(
         a.warnings,
-        vec!["Saving from the visual editor removes 2 comments (line 5, 14).".to_owned()]
+        vec!["Saving from the visual editor removes 2 comments (line 5, 15).".to_owned()]
     );
 }
 
@@ -311,9 +321,19 @@ fn unsupported_files_name_the_first_line_they_cannot_show() {
             "vb.gui",
         ),
         (
-            "Vagrant.configure(\"2\") do |config|\n  config.vm.network \"public_network\"\nend\n",
+            "Vagrant.configure(\"2\") do |config|\n  config.vm.network \"public_network\", bridge: [\"a\", \"b\"]\nend\n",
             2,
-            "public_network",
+            "bridge:",
+        ),
+        (
+            "Vagrant.configure(\"2\") do |config|\n  config.vm.network \"public_network\", ip: \"10.0.0.5\", type: \"dhcp\"\nend\n",
+            2,
+            "both",
+        ),
+        (
+            "Vagrant.configure(\"2\") do |config|\n  config.vm.network \"public_network\", use_dhcp_assigned_default_route: true\nend\n",
+            2,
+            "use_dhcp_assigned_default_route",
         ),
         (
             "Vagrant.configure(\"2\") do |config|\n  config.vm.provision \"ansible\", playbook: \"p.yml\"\nend\n",
@@ -393,6 +413,17 @@ fn accepts_common_spellings() {
             memory_mb: Some(512)
         }]
     );
+}
+
+#[test]
+fn public_network_dhcp_spellings_mean_the_same() {
+    let explicit = "Vagrant.configure(\"2\") do |config|\n  config.vm.box = \"x\"\n  config.vm.network \"public_network\", type: \"dhcp\", bridge: \"eth0\"\nend\n";
+    let implicit = "Vagrant.configure(\"2\") do |config|\n  config.vm.box = \"x\"\n  config.vm.network \"public_network\", bridge: \"eth0\"\nend\n";
+    let a = analyze(explicit).model;
+    assert!(a.is_some(), "{:?}", analyze(explicit).unsupported);
+    assert_eq!(a, analyze(implicit).model);
+    let generated = generate(&a.unwrap(), LineEnding::Lf).unwrap();
+    assert!(generated.contains("  config.vm.network \"public_network\", bridge: \"eth0\"\n"));
 }
 
 #[test]
