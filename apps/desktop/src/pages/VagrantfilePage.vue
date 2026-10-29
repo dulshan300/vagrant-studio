@@ -416,7 +416,12 @@ const tabClass = (active: boolean) =>
       </div>
 
       <Card v-if="tab === 'visual'" class="p-5">
-        <VisualEditor v-if="model" v-model="model" :errors="errorMap" />
+        <VisualEditor
+          v-if="model"
+          v-model="model"
+          :errors="errorMap"
+          :provider="environment.defaultProvider"
+        />
         <div v-else class="max-w-prose space-y-3 text-sm">
           <h2 class="font-medium">The visual editor can't show this Vagrantfile</h2>
           <p>

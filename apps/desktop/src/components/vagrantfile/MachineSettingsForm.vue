@@ -35,14 +35,22 @@ const props = defineProps<{
   bridges?: BridgedInterface[]
   /** Host ports something on this computer already listens on, by `hostPortKey`. */
   portsInUse?: Record<string, boolean>
+  /** The environment's provider: offered first, and other providers' settings are marked. */
+  provider?: string | null
 }>()
 
 const err = (field: string) => props.errors[`${props.path}.${field}`] ?? null
 const id = (field: string) => `${props.idPrefix}-${field}`
 
 const providerKinds = Object.keys(PROVIDER_LABELS) as ProviderKind[]
-const unusedProvider = computed(() =>
-  providerKinds.find((p) => !settings.value.providers.some((s) => s.provider === p)),
+const environmentProvider = computed(() => providerKinds.find((p) => p === props.provider) ?? null)
+/** Providers without settings yet, the environment's own first. */
+const unusedProviders = computed(() =>
+  providerKinds
+    .filter((p) => !settings.value.providers.some((s) => s.provider === p))
+    .sort(
+      (a, b) => Number(b === environmentProvider.value) - Number(a === environmentProvider.value),
+    ),
 )
 
 const numberInput = 'w-full rounded-md border bg-surface px-2 py-1.5 text-sm'
@@ -99,26 +107,40 @@ function parsePrivileged(value: string): boolean | null {
     <section class="space-y-2">
       <h3 :class="sectionTitle">
         CPU and memory
-        <Button
-          v-if="unusedProvider"
-          variant="ghost"
-          size="sm"
-          @click="settings.providers.push({ provider: unusedProvider, cpus: null, memoryMb: null })"
-        >
-          <Plus /> {{ PROVIDER_LABELS[unusedProvider] }}
-        </Button>
+        <span class="flex items-center gap-1">
+          <Button
+            v-for="kind in unusedProviders"
+            :key="kind"
+            variant="ghost"
+            size="sm"
+            :class="environmentProvider && kind !== environmentProvider ? 'text-muted' : ''"
+            :title="`Add CPU and memory settings for ${PROVIDER_LABELS[kind]}`"
+            @click="settings.providers.push({ provider: kind, cpus: null, memoryMb: null })"
+          >
+            <Plus /> {{ PROVIDER_LABELS[kind] }}
+          </Button>
+        </span>
       </h3>
       <p v-if="!settings.providers.length" class="text-xs text-muted">
-        Not set: the provider's defaults apply{{
-          inherited?.providers.length ? ' (or the shared settings)' : ''
-        }}.
+        Not set:
+        {{ environmentProvider ? `${PROVIDER_LABELS[environmentProvider]}'s` : "the provider's" }}
+        defaults apply{{ inherited?.providers.length ? ' (or the shared settings)' : '' }}.
       </p>
       <div
         v-for="(p, i) in settings.providers"
         :key="p.provider"
         class="grid grid-cols-[minmax(0,1fr)_6rem_8rem_auto] items-end gap-2"
       >
-        <div class="pb-2 text-sm">{{ PROVIDER_LABELS[p.provider] }}</div>
+        <div class="min-w-0 pb-2 text-sm">
+          {{ PROVIDER_LABELS[p.provider] }}
+          <p
+            v-if="environmentProvider && p.provider !== environmentProvider"
+            class="text-[11px] text-muted"
+          >
+            Used only if the machine runs on {{ PROVIDER_LABELS[p.provider] }}; this environment
+            uses {{ PROVIDER_LABELS[environmentProvider] }}.
+          </p>
+        </div>
         <FormField label="CPUs" :for="id(`p${i}-cpus`)" :error="err(`providers.${i}.cpus`)">
           <input
             :id="id(`p${i}-cpus`)"

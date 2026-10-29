@@ -13,7 +13,11 @@ import type { BridgedInterface, VagrantConfig } from '@/types/vagrantfile'
 
 /** Forms for the supported Vagrantfile subset (crates/config-model). */
 const config = defineModel<VagrantConfig>({ required: true })
-const props = defineProps<{ errors: Record<string, string> }>()
+const props = defineProps<{
+  errors: Record<string, string>
+  /** The environment's provider, offered first for CPU and memory. */
+  provider?: string | null
+}>()
 
 /** `shared` (settings on `config`) or a machine index. */
 const selected = ref<'shared' | number>('shared')
@@ -205,6 +209,7 @@ const navItem = (active: boolean) =>
           :new-forwarded-port="() => newForwardedPort(config)"
           :bridges="bridges"
           :ports-in-use="portsInUse"
+          :provider="provider"
         />
       </template>
       <MachineSettingsForm
@@ -217,6 +222,7 @@ const navItem = (active: boolean) =>
         :new-forwarded-port="() => newForwardedPort(config)"
         :bridges="bridges"
         :ports-in-use="portsInUse"
+        :provider="provider"
       />
     </div>
   </div>

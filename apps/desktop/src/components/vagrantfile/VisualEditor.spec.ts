@@ -4,12 +4,17 @@ import VisualEditor from './VisualEditor.vue'
 import { starterModel } from '@/lib/vagrantfile'
 import type { VagrantConfig } from '@/types/vagrantfile'
 
-function mountEditor(model: VagrantConfig, errors: Record<string, string> = {}) {
+function mountEditor(
+  model: VagrantConfig,
+  errors: Record<string, string> = {},
+  provider: string | null = null,
+) {
   return mount(VisualEditor, {
     props: {
       modelValue: model,
       'onUpdate:modelValue': () => undefined,
       errors,
+      provider,
     },
   })
 }
@@ -41,6 +46,22 @@ describe('VisualEditor', () => {
 
     await wrapper.get('#m0-name').setValue('web')
     expect(model.machines[0]!.name).toBe('web')
+  })
+
+  it("offers the environment's provider first for CPU and memory", async () => {
+    const model = starterModel(null)
+    model.defaults.providers = []
+    const wrapper = mountEditor(model, {}, 'vmware_desktop')
+    const adds = () =>
+      wrapper.findAll('button').filter((b) => b.attributes('title')?.startsWith('Add CPU'))
+    expect(adds().map((b) => b.text())).toEqual(['VMware Desktop', 'VirtualBox'])
+    expect(wrapper.text()).toContain("Not set: VMware Desktop's defaults apply")
+
+    await adds()[1]!.trigger('click')
+    expect(model.defaults.providers.map((p) => p.provider)).toEqual(['virtualbox'])
+    expect(wrapper.text()).toContain(
+      'Used only if the machine runs on VirtualBox; this environment uses VMware Desktop.',
+    )
   })
 
   it('shows field errors next to inputs and marks machines with problems', async () => {
