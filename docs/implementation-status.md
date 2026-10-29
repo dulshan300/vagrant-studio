@@ -88,7 +88,7 @@ use, never under-report).
 | clippy `-D warnings` / rustfmt | Pass |
 | Frontend lint, format, typecheck, tests, production build | Pass, 52 tests (8 new: visual editor, page flow incl. leave guard) |
 | Manual walkthrough on Windows (`docs/testing/manual-vagrantfile-editor.md`) | **Pass**: user, 2026-10-29, no issues |
-| Windows CI for Phases 3–5 | Not yet pushed |
+| Windows CI for Phases 3–5 | **Pass** (run 40832387355, `7822262` on `main`, 2026-10-29): all checks, MSVC build, NSIS installer artifact (4.6 MB); covers Phases 2–6 |
 
 New dependencies: `@codemirror/{view 6.43.14, state 6.7.6, commands 6.11.1, search 6.7.2,
 language 6.13.1, legacy-modes 6.5.5, merge 6.12.2}` and `@lezer/highlight 1.2.5`, all
@@ -105,7 +105,7 @@ New capability: `core:window:allow-destroy`, used by the unsaved-changes guard o
 | Frontend lint, format, typecheck, tests | Pass, 37 tests |
 | Manual lifecycle on Windows, VMware Desktop | **Accepted by the user** 2026-10-28 (no itemized step results). Seen during use: start/provision runs, a forwarded-port collision on resume (Vagrant error, reported as a failed operation), a provisioner failure whose summary hid the cause (fixed in `69e74ac`), VMX `pcislotnumber` warnings from the vmware plugin (harmless) |
 | Manual lifecycle on Windows, VirtualBox | Not reported |
-| Windows CI for Phases 3–4 | Not yet pushed |
+| Windows CI for Phases 3–4 | **Pass** (run 40832387355, `7822262` on `main`, 2026-10-29): all checks, MSVC build, NSIS installer artifact (4.6 MB); covers Phases 2–6 |
 
 ## Phase 3 results (2026-10-28)
 | Check | Result |
@@ -116,7 +116,7 @@ New capability: `core:window:allow-destroy`, used by the unsaved-changes guard o
 | Templates × providers `vagrant validate` (3 × 2, Windows) | Pass |
 | Frontend lint, typecheck, tests | Pass, 32 tests |
 | Manual walkthrough on Windows (readiness, refresh status, validate, operations history, provider selection) | **Pass**: user, 2026-10-28 |
-| Windows CI for Phase 3 | Not yet pushed |
+| Windows CI for Phase 3 | **Pass** (run 40832387355, `7822262` on `main`, 2026-10-29): all checks, MSVC build, NSIS installer artifact (4.6 MB); covers Phases 2–6 |
 
 ## Phase 2 results (2026-10-28)
 | Check | Result |
@@ -129,7 +129,7 @@ New capability: `core:window:allow-destroy`, used by the unsaved-changes guard o
 | Acceptance: restart persistence, import changes no files, metadata delete keeps files, migration tests | Covered by automated tests, all passing |
 | Windows app launch (local build) | Starts; database created in `%APPDATA%\dev.vagrantstudio.desktop` |
 | Manual UI walkthrough on Windows | **Pass**: user, 2026-10-28, no issues |
-| Windows CI for Phase 2 | Not yet pushed |
+| Windows CI for Phase 2 | **Pass** (run 40832387355, `7822262` on `main`, 2026-10-29): all checks, MSVC build, NSIS installer artifact (4.6 MB); covers Phases 2–6 |
 
 ## Phase 1 progress
 | Task | State |
@@ -194,7 +194,6 @@ include the last output lines.
 ## Next recommended task
 1. Phase 6: VirtualBox verification on Windows 11 (and Ubuntu), recorded in
    `docs/provider-capabilities.md`; then Phase 6 is complete.
-2. Push and confirm the Windows CI run for Phases 3–6.
-3. Optional: VirtualBox lifecycle run of `docs/testing/manual-lifecycle.md` on Windows.
-4. Before release: install the CI NSIS installer by hand on Windows 11.
-5. Later: re-enable the Ubuntu/Fedora CI jobs.
+2. Optional: VirtualBox lifecycle run of `docs/testing/manual-lifecycle.md` on Windows.
+3. Before release: install the CI NSIS installer by hand on Windows 11.
+4. Later: re-enable the Ubuntu/Fedora CI jobs.
