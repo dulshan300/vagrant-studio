@@ -9,7 +9,13 @@ passed (run 40858003787, `2317b88`). SSH in an external terminal: done in
 code and automated tests (terminal button on running machines with the `ssh`
 capability; Windows Terminal, else a console window; Linux terminal list
 untested); Windows Terminal detection checked on Windows (opt-in
-`real_terminal` test); walkthrough `docs/testing/manual-ssh.md` not yet run.
+`real_terminal` test); SSH through the app confirmed working on Windows by
+the user (2026-10-29, no itemized results for `docs/testing/manual-ssh.md`).
+Also done: project page redesign (full-width environment cards, details in an
+Edit dialog, project/environment actions in menus; every action kept), and a
+fix so the editor's CPU and memory section offers the environment's provider
+first and marks settings for other providers as unused (user report,
+2026-10-29).
 
 ## Completed phases
 - **Phase 0 — Inspection and planning** (2026-10-28): architecture, roadmap,
@@ -196,7 +202,8 @@ Vagrant prints guest output to stdout; failure summaries of human-output command
 include the last output lines.
 
 ## Next recommended task
-1. Run `docs/testing/manual-ssh.md` on Windows.
-2. Phase 7: embedded PTY terminal (evaluate portable-pty + xterm.js).
+1. Phase 7: embedded PTY terminal (evaluate portable-pty + xterm.js).
+2. Phase 7: external editor, Git status, notes and tasks, shortcuts, log
+   navigation, cross-project port warnings.
 3. Before release: install the CI NSIS installer by hand on Windows 11.
 4. Later: re-enable the Ubuntu/Fedora CI jobs.
