@@ -78,7 +78,7 @@ Acceptance: app launches on target OSes; UI navigable; CI runs tests; no new war
 - Ubuntu verification of VirtualBox moved to the Phase 9 test matrix (user, 2026-10-29)
 
 ## Phase 7 — Developer workspace
-- [ ] SSH: external terminal launch first, then an embedded PTY terminal (evaluate portable-pty + xterm.js)
+- [ ] SSH: external terminal launch first, then an embedded PTY terminal (evaluate portable-pty + xterm.js). External terminal done in code and automated tests (Windows Terminal, console fallback, Linux terminals untested); walkthrough `docs/testing/manual-ssh.md` not yet run
 - [ ] External editor integration, Git status, notes and tasks, project shortcuts, log navigation, cross-project port warnings
 
 ## Phase 8 — Additional providers and advanced capabilities

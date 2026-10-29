@@ -16,6 +16,7 @@ use vagrant_studio_platform::PlatformAdapter;
 
 pub use command::{
     LifecycleAction, MachineName, ProvisionerName, Provisioning, StateClass, VagrantCommand,
+    ssh_args,
 };
 pub use runner::{Invocation, OutputLine, ProcessRunner, RunResult, Runner, Stream, Termination};
 

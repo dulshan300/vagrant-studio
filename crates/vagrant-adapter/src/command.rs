@@ -184,6 +184,13 @@ impl StateClass {
     }
 }
 
+/// Arguments for an interactive `vagrant ssh` session. It needs a real
+/// terminal, so it is never run through the [`Runner`](crate::Runner); the
+/// platform crate opens it in a terminal window instead.
+pub fn ssh_args(machine: &MachineName) -> Vec<String> {
+    vec!["ssh".to_owned(), machine.as_str().to_owned()]
+}
+
 /// Commands Vagrant Studio runs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum VagrantCommand {

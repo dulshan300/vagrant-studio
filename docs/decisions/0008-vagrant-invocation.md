@@ -63,6 +63,23 @@ Linux. The behaviour below was checked against Vagrant 2.4.9 on Windows 11
   to `127.0.0.1:9922`, which needs no admin rights. Nothing is installed or
   started on the user's behalf.
 
+**Interactive SSH (Phase 7)**
+- `vagrant ssh <machine>` needs a real terminal, so it is the one Vagrant
+  command not run through the `Runner` or the engine. The argv comes from the
+  adapter (`ssh_args`). `crates/platform` (`system_terminal_launch`,
+  `spawn_terminal`) starts it in a new terminal window. The working directory
+  is the environment root, set on the spawned process, so no path goes
+  through a terminal's argument parsing.
+- Windows: Windows Terminal (`wt -w new new-tab --title … -d . vagrant ssh m`),
+  found on `PATH` or as the app alias in `%LOCALAPPDATA%\Microsoft\WindowsApps`.
+  `wt` splits its command line at `;`, so it is skipped when any argument
+  contains one. The fallback is `vagrant.exe` in a new console window.
+  Linux: the first installed of `x-terminal-emulator`, GNOME Terminal,
+  Ptyxis, Konsole, Xfce Terminal, kitty, Alacritty and xterm (untested).
+- The session is the user's: no operation row, no log, no lock. The machine
+  must be `running` in the last `vagrant status`, and its provider must have
+  the `ssh` capability.
+
 ## Consequences
 - Fixtures must be refreshed when supporting a new Vagrant version.
 - Real-Vagrant tests are opt-in: `cargo test -p vagrant-studio-vagrant-adapter --

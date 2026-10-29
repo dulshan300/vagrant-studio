@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { CircleAlert, CircleCheck, CircleX, LoaderCircle } from '@lucide/vue'
+import { CircleAlert, CircleCheck, CircleX, LoaderCircle, SquareTerminal } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import StatusBadge from '@/components/status/StatusBadge.vue'
 import DestroyMachinesDialog from './DestroyMachinesDialog.vue'
@@ -18,6 +18,7 @@ import { relativeTime } from '@/lib/projects'
 import { PROVISION_COMMANDS, provisioningOutcome, type ProvisionCommand } from '@/lib/provisioning'
 import { hasBackend } from '@/services/app'
 import { errorMessage } from '@/services/errors'
+import { terminalApi } from '@/services/terminal'
 import { useOperationsStore } from '@/stores/operations'
 import type { EnvironmentStatus, LifecycleAction, Operation } from '@/types/operations'
 import type { Environment } from '@/types/projects'
@@ -95,6 +96,15 @@ const lastProvisioning = computed(() =>
 
 function toggleAll() {
   selected.value = allSelected.value ? [] : machines.value.map((m) => m.name)
+}
+
+async function openSsh(name: string) {
+  actionError.value = null
+  try {
+    await terminalApi.openSsh(props.environment.id, name)
+  } catch (e) {
+    actionError.value = errorMessage(e)
+  }
 }
 
 async function run(action: LifecycleAction, names: string[]) {
@@ -227,6 +237,17 @@ async function run(action: LifecycleAction, names: string[]) {
             </span>
             <span class="text-[11px] text-muted">{{ m.provider }}</span>
             <StatusBadge :state="m.ui" />
+            <Button
+              v-if="m.ui === 'running' && m.capabilities.includes('ssh')"
+              variant="ghost"
+              size="icon"
+              class="size-7"
+              title="vagrant ssh: open a shell on the machine in a new terminal window"
+              :aria-label="`SSH into ${m.name}`"
+              @click="openSsh(m.name)"
+            >
+              <SquareTerminal />
+            </Button>
             <Button
               v-if="primaryAction(m.ui)"
               variant="ghost"

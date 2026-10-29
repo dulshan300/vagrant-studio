@@ -3,8 +3,13 @@
 _Last updated: 2026-10-29_
 
 ## Current phase
-**Phase 7 — Developer workspace: not started.** Phase 6 is complete; its
-branch `phase-6-boxes-providers` is not yet merged into `main`.
+**Phase 7 — Developer workspace: in progress** (branch
+`phase-7-developer-workspace`). Phase 6 is merged into `main`; Windows CI
+passed (run 40858003787, `2317b88`). SSH in an external terminal: done in
+code and automated tests (terminal button on running machines with the `ssh`
+capability; Windows Terminal, else a console window; Linux terminal list
+untested); Windows Terminal detection checked on Windows (opt-in
+`real_terminal` test); walkthrough `docs/testing/manual-ssh.md` not yet run.
 
 ## Completed phases
 - **Phase 0 — Inspection and planning** (2026-10-28): architecture, roadmap,
@@ -191,7 +196,7 @@ Vagrant prints guest output to stdout; failure summaries of human-output command
 include the last output lines.
 
 ## Next recommended task
-1. Merge Phase 6 into `main` and check Windows CI.
-2. Phase 7, first task: SSH through an external terminal (see the roadmap).
+1. Run `docs/testing/manual-ssh.md` on Windows.
+2. Phase 7: embedded PTY terminal (evaluate portable-pty + xterm.js).
 3. Before release: install the CI NSIS installer by hand on Windows 11.
 4. Later: re-enable the Ubuntu/Fedora CI jobs.

@@ -71,7 +71,9 @@ Vagrant, VM or WebView.
   Option<MachineName>, provision: bool }`) and turned into an **argument
   vector**. Nothing is interpolated into a shell string. No shell is used
   unless an operation really requires one, such as launching an external
-  terminal, and that case is isolated in `platform`.
+  terminal, and that case is isolated in `platform`. Interactive
+  `vagrant ssh` opens in a terminal window and bypasses the engine
+  (ADR-0008, *Interactive SSH*); an embedded terminal comes later.
 - Every invocation has an explicit working directory: the environment root,
   validated as an existing directory that contains the Vagrantfile.
 - Read-only queries (`status`, `box list`, `version`, `plugin list`) use

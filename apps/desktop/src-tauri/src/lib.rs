@@ -90,6 +90,7 @@ pub fn run() {
             commands::provisioning::list_provisioners,
             commands::provisioning::get_operation_provisioning,
             commands::provisioning::get_latest_provisioning,
+            commands::terminal::open_ssh_terminal,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Vagrant Studio");

@@ -5,4 +5,5 @@ pub mod network;
 pub mod operations;
 pub mod projects;
 pub mod provisioning;
+pub mod terminal;
 pub mod vagrantfile;

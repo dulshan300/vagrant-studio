@@ -1,4 +1,4 @@
-//! Host platform detection and executable discovery.
+//! Host platform detection, executable discovery and terminal launching.
 //!
 //! Everything that differs between Windows and Linux hosts lives behind
 //! [`PlatformAdapter`] so the rest of the backend can stay platform-neutral and
@@ -6,9 +6,11 @@
 
 mod discovery;
 mod host;
+mod terminal;
 
 pub use discovery::{ExecutableSearch, find_executable};
 pub use host::{Arch, HostInfo, HostOs, is_wsl_kernel_release};
+pub use terminal::{TerminalLaunch, spawn_terminal, system_terminal_launch, terminal_launch};
 
 use std::path::PathBuf;
 
