@@ -75,7 +75,7 @@ Acceptance: app launches on target OSes; UI navigable; CI runs tests; no new war
 - [x] Forwarded ports (+ host-port conflict detection), private/public networks, synced folders: public networks (with VirtualBox adapter suggestions and a warning when none is set) added to the visual subset; host ports checked like Vagrant does; forwarded ports, private networks and synced folders were done in Phase 5. Walkthrough `docs/testing/manual-network.md` passed on Windows (user, 2026-10-29)
 - [x] Shell provisioner management and results: named provisioners in the visual subset, Provision dialog (all or chosen names; Start/Restart with `--provision`), results per machine from the command output (migration 0003). Walkthrough `docs/testing/manual-provisioning.md` passed on Windows (user, 2026-10-29)
 - [x] VirtualBox verification on Windows 11 recorded in provider-capabilities.md (smoke test and `docs/testing/manual-virtualbox.md` passed, user, 2026-10-29; listed in `VERIFIED`)
-- [ ] VirtualBox verification on Ubuntu (waits for the Linux work to resume)
+- Ubuntu verification of VirtualBox moved to the Phase 9 test matrix (user, 2026-10-29)
 
 ## Phase 7 — Developer workspace
 - [ ] SSH: external terminal launch first, then an embedded PTY terminal (evaluate portable-pty + xterm.js)
@@ -86,6 +86,6 @@ Acceptance: app launches on target OSes; UI navigable; CI runs tests; no new war
 - [ ] Capability-gated snapshots, optional metrics, export and recovery assistance
 
 ## Phase 9 — Release hardening
-- [ ] Full test matrix on clean Windows/Ubuntu/Fedora; missing-Vagrant/provider cases; invalid Vagrantfiles; interrupted operations; paths with spaces and non-ASCII characters; DB upgrade tests
+- [ ] Full test matrix on clean Windows/Ubuntu/Fedora (including VirtualBox verification on Ubuntu); missing-Vagrant/provider cases; invalid Vagrantfiles; interrupted operations; paths with spaces and non-ASCII characters; DB upgrade tests
 - [ ] Permission and process-execution review; secret-leak review of logs and diagnostics
 - [ ] Installers (NSIS, deb, AppImage, rpm), install/troubleshooting docs, release checklist, known limitations

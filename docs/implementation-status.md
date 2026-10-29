@@ -3,20 +3,8 @@
 _Last updated: 2026-10-29_
 
 ## Current phase
-**Phase 6 — Boxes, providers, networking, provisioning: in progress** (branch
-`phase-6-boxes-providers`). Done: box management (automated tests pass; manual
-walkthrough on Windows accepted by the user 2026-10-29); `crates/provider-registry` (automated
-tests pass; real detection checked on Windows; Providers page accepted by the user 2026-10-29).
-Networking (public networks, host-port check) done in code and automated
-tests; walkthrough (`docs/testing/manual-network.md`) passed on Windows (user,
-2026-10-29). Shell provisioner management and results done in code and
-automated tests (named provisioners, run all/chosen, Up/Reload with
-`--provision`, per-machine results); walkthrough
-(`docs/testing/manual-provisioning.md`) passed on Windows (user, 2026-10-29).
-VirtualBox **Verified on Windows 11** (smoke test and walkthrough
-`docs/testing/manual-virtualbox.md` passed, user, 2026-10-29). Phase 6 is
-complete for Windows. Remaining: VirtualBox verification on Ubuntu (waits for
-the Linux work to resume).
+**Phase 7 — Developer workspace: not started.** Phase 6 is complete; its
+branch `phase-6-boxes-providers` is not yet merged into `main`.
 
 ## Completed phases
 - **Phase 0 — Inspection and planning** (2026-10-28): architecture, roadmap,
@@ -42,15 +30,23 @@ the Linux work to resume).
   data, atomic save under the environment lock. Automated tests pass on Linux and as
   Windows binaries; 14 generated files pass `vagrant validate`; user walkthrough of
   `docs/testing/manual-vagrantfile-editor.md` passed with no issues.
+- **Phase 6 — Boxes, providers, networking, provisioning** (2026-10-29, Windows): box
+  management, `crates/provider-registry` (capabilities, support level, prerequisite
+  findings), public networks and host-port checks, shell provisioner management and
+  per-machine results. Automated tests pass on Linux and as Windows binaries;
+  walkthroughs for boxes, providers, networking and provisioning passed on Windows
+  (user). VirtualBox **Verified on Windows 11** under Hyper-V (smoke test and
+  `docs/testing/manual-virtualbox.md`). Ubuntu verification dropped from this phase
+  by the user; it belongs to the Phase 9 test matrix.
 
-## Phase 6 progress (2026-10-29)
+## Phase 6 results (2026-10-29)
 | Task | State |
 |---|---|
 | Box management: list with machine usage, update check, add (catalog / URL / file), update, remove with typed confirmation and token; box write lock | Done; Windows walkthrough accepted |
 | `crates/provider-registry` (capabilities, docker adapter, VirtualBox/Vagrant compatibility, Hyper-V coexistence) | Done (automated + real-host detection on Windows); Providers page accepted by the user 2026-10-29 |
 | Networking: public networks in the visual subset, host-port conflict detection | Done in code; automated tests pass; 14 generated files pass `vagrant validate`; walkthrough (`docs/testing/manual-network.md`) **passed** on Windows (user, 2026-10-29, "test ok", no itemized step results) |
 | Shell provisioner management and results: named provisioners in the visual subset, Provision dialog (all / chosen names via `--provision-with`; Start/Restart with `--provision`), backend name check, results parsed from output and stored per machine (migration 0003), shown on machine rows and in the operation drawer | Done in code; automated tests pass; 14 generated files pass `vagrant validate`; walkthrough (`docs/testing/manual-provisioning.md`) **passed** on Windows with VMware Desktop (user, 2026-10-29, "all pass", no itemized step results) |
-| VirtualBox verification on Windows 11 and Ubuntu | Windows: **Verified** 2026-10-29. CLI smoke test passed under Hyper-V (up, provision, suspend/resume, halt, destroy); walkthrough `docs/testing/manual-virtualbox.md` passed (user, no itemized step results; UAC prompt not reported). Added to `VERIFIED` in `crates/provider-registry`. Ubuntu: not started |
+| VirtualBox verification on Windows 11 and Ubuntu | Windows: **Verified** 2026-10-29. CLI smoke test passed under Hyper-V (up, provision, suspend/resume, halt, destroy); walkthrough `docs/testing/manual-virtualbox.md` passed (user, no itemized step results; UAC prompt not reported). Added to `VERIFIED` in `crates/provider-registry`. Ubuntu: moved to Phase 9 (user, 2026-10-29) |
 
 | Check | Result |
 |---|---|
@@ -196,7 +192,6 @@ include the last output lines.
 
 ## Next recommended task
 1. Merge Phase 6 into `main` and check Windows CI.
-2. Phase 7 (see the roadmap). VirtualBox verification on Ubuntu waits for the
-   Linux work to resume.
+2. Phase 7, first task: SSH through an external terminal (see the roadmap).
 3. Before release: install the CI NSIS installer by hand on Windows 11.
 4. Later: re-enable the Ubuntu/Fedora CI jobs.

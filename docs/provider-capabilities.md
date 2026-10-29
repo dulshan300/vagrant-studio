@@ -54,7 +54,7 @@ in the registry are not limited (Vagrant decides).
 
 | Provider | Windows 11 | Ubuntu 24.04 | Fedora | Status / phase |
 |---|---|---|---|---|
-| **VirtualBox 7.1** | First path | First path | Detected (needs RPM Fusion and kernel modules) | **Verified** on Windows 11 (2026-10-29); Ubuntu verification pending |
+| **VirtualBox 7.1** | First path | First path | Detected (needs RPM Fusion and kernel modules) | **Verified** on Windows 11 (2026-10-29); Ubuntu in the Phase 9 test matrix |
 | Docker (`docker` provider) | — | Test harness | Test harness | Used for automated lifecycle integration tests on Linux CI; shown to users as a container provider, clearly separated from VMs |
 | libvirt (vagrant-libvirt plugin) | n/a | Candidate | **Preferred Fedora candidate** | Phase 8 |
 | Hyper-V | Candidate | n/a | n/a | Phase 8 (needs admin and conflicts with VirtualBox; see R8) |
