@@ -678,7 +678,9 @@ async fn destroy_requires_a_matching_single_use_confirmation() {
     let err = h.engine.run(destroy()).await.unwrap_err();
     assert!(matches!(err, EngineError::Confirmation(_)));
 
-    let c = h.engine.confirm(h.env, destroy().command, "web".into());
+    let c = h
+        .engine
+        .confirm(Some(h.env), destroy().command, "web".into());
     let mut req = destroy();
     req.confirmation = proof(&c, "db");
     assert!(matches!(
@@ -687,7 +689,9 @@ async fn destroy_requires_a_matching_single_use_confirmation() {
     ));
 
     // A token for one machine can't destroy another.
-    let c = h.engine.confirm(h.env, destroy().command, "web".into());
+    let c = h
+        .engine
+        .confirm(Some(h.env), destroy().command, "web".into());
     let mut req = lifecycle_request(h.env, LifecycleAction::Destroy, &["db"]);
     req.confirmation = proof(&c, "web");
     assert!(matches!(
@@ -695,7 +699,9 @@ async fn destroy_requires_a_matching_single_use_confirmation() {
         Err(EngineError::Confirmation(_))
     ));
 
-    let c = h.engine.confirm(h.env, destroy().command, "web".into());
+    let c = h
+        .engine
+        .confirm(Some(h.env), destroy().command, "web".into());
     let mut req = destroy();
     req.confirmation = proof(&c, " web ");
     let op = h.engine.run(req.clone()).await.unwrap();
@@ -772,4 +778,137 @@ async fn environment_lock_is_refused_while_busy_and_holds_operations_back() {
     gate.add_permits(1);
     eventually(|| !h.engine.is_running(status.id)).await;
     assert_eq!(h.runner.calls().len(), calls + 1);
+}
+
+fn box_ref(version: &str) -> vagrant_studio_vagrant_adapter::boxes::BoxRef {
+    serde_json::from_value(serde_json::json!({
+        "name": "almalinux/9", "provider": "vmware_desktop",
+        "version": version, "architecture": "amd64",
+    }))
+    .unwrap()
+}
+
+/// A host-level box command (no project or environment).
+fn box_request(command: VagrantCommand) -> OperationRequest {
+    OperationRequest {
+        operation_type: match command {
+            VagrantCommand::BoxRemove(_) => OperationType::BoxRemove,
+            VagrantCommand::BoxUpdate { .. } => OperationType::BoxUpdate,
+            _ => OperationType::BoxAdd,
+        },
+        command,
+        program: "vagrant".into(),
+        working_dir: "/tmp".into(),
+        project_id: None,
+        environment_id: None,
+        machine_name: None,
+        target_label: "Boxes".into(),
+        env: vec![],
+        timeout: Some(Duration::from_secs(60)),
+        confirmation: None,
+    }
+}
+
+#[tokio::test]
+async fn box_remove_needs_a_confirmation_for_that_exact_box() {
+    let h = harness(FakeRunner::new("", 0)).await;
+    let remove = |v: &str| box_request(VagrantCommand::BoxRemove(box_ref(v)));
+    assert!(matches!(
+        h.engine.run(remove("1")).await,
+        Err(EngineError::Confirmation(_))
+    ));
+
+    let c = h
+        .engine
+        .confirm(None, remove("1").command, "almalinux/9".into());
+    let mut other = remove("2");
+    other.confirmation = Some(ConfirmationProof {
+        token: c.token.clone(),
+        typed: "almalinux/9".into(),
+    });
+    assert!(matches!(
+        h.engine.run(other).await,
+        Err(EngineError::Confirmation(_))
+    ));
+    // Nor can a box token be used for an environment.
+    let c = h
+        .engine
+        .confirm(None, remove("1").command, "almalinux/9".into());
+    let mut in_env = remove("1");
+    in_env.environment_id = Some(h.env);
+    in_env.confirmation = Some(ConfirmationProof {
+        token: c.token,
+        typed: "almalinux/9".into(),
+    });
+    assert!(h.engine.run(in_env).await.is_err());
+
+    let c = h
+        .engine
+        .confirm(None, remove("1").command, "almalinux/9".into());
+    let mut req = remove("1");
+    req.confirmation = Some(ConfirmationProof {
+        token: c.token,
+        typed: "almalinux/9".into(),
+    });
+    let op = h.engine.run(req).await.unwrap();
+    assert_eq!(op.status, OperationStatus::Succeeded);
+    assert_eq!(op.environment_id, None);
+    assert_eq!(op.operation_type, OperationType::BoxRemove);
+    assert_eq!(
+        h.runner.calls().len(),
+        1,
+        "no status refresh for box commands"
+    );
+}
+
+#[tokio::test]
+async fn box_changes_wait_for_running_ups_and_hold_new_ones_back() {
+    let (runner, gate) = FakeRunner::new("", 0).with_status(STATUS_RUNNING).gated();
+    let h = harness(runner).await;
+    let up = h
+        .engine
+        .start(lifecycle_request(h.env, LifecycleAction::Up, &["web"]))
+        .await
+        .unwrap();
+    eventually(|| h.runner.calls().len() == 1).await;
+    let update = h
+        .engine
+        .start(box_request(VagrantCommand::BoxUpdate {
+            name: "almalinux/9".into(),
+            provider: "vmware_desktop".into(),
+            architecture: None,
+        }))
+        .await
+        .unwrap();
+    // A duplicate box change is refused rather than queued twice.
+    assert!(matches!(
+        h.engine
+            .start(box_request(VagrantCommand::BoxUpdate {
+                name: "almalinux/9".into(),
+                provider: "vmware_desktop".into(),
+                architecture: None,
+            }))
+            .await,
+        Err(EngineError::Conflict(_))
+    ));
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    assert_eq!(h.runner.calls().len(), 1, "update waits for the running up");
+
+    // up (1 permit) → status; then the update starts and blocks the next up.
+    gate.add_permits(1);
+    eventually(|| !h.engine.is_running(up.id)).await;
+    eventually(|| h.runner.calls().iter().any(|c| c.starts_with("box update"))).await;
+    let second_up = h
+        .engine
+        .start(lifecycle_request(h.env, LifecycleAction::Up, &["db"]))
+        .await
+        .unwrap();
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    assert!(
+        !h.runner.calls().iter().any(|c| c == "up --no-tty db"),
+        "up waits for the box change"
+    );
+    gate.add_permits(2);
+    eventually(|| !h.engine.is_running(update.id) && !h.engine.is_running(second_up.id)).await;
+    assert!(h.runner.calls().iter().any(|c| c == "up --no-tty db"));
 }

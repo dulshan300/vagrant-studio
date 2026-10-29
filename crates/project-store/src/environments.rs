@@ -100,6 +100,27 @@ impl Store {
         rows.into_iter().map(Environment::try_from).collect()
     }
 
+    /// Every environment with its project's name, ordered by project and
+    /// environment name.
+    pub async fn list_all_environments(&self) -> Result<Vec<(Environment, String)>> {
+        #[derive(sqlx::FromRow)]
+        struct Row {
+            #[sqlx(flatten)]
+            environment: EnvironmentRow,
+            project_name: String,
+        }
+        let rows: Vec<Row> = sqlx::query_as(
+            "SELECT e.*, p.name AS project_name FROM environments e \
+             JOIN projects p ON p.id = e.project_id \
+             ORDER BY p.name COLLATE NOCASE, e.name COLLATE NOCASE",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        rows.into_iter()
+            .map(|r| Ok((Environment::try_from(r.environment)?, r.project_name)))
+            .collect()
+    }
+
     /// Changes the provider Vagrant should use for this environment's machines.
     pub async fn set_environment_provider(
         &self,
@@ -206,6 +227,14 @@ mod tests {
         let cleared = s.set_environment_provider(test.id, None).await.unwrap();
         assert_eq!(cleared.default_provider, None);
         let test = cleared;
+
+        assert_eq!(
+            s.list_all_environments().await.unwrap(),
+            vec![
+                (dev.clone(), "A".to_owned()),
+                (test.clone(), "A".to_owned())
+            ]
+        );
 
         assert!(s.delete_environment(dev.id).await.unwrap());
         assert_eq!(s.list_environments(pid).await.unwrap(), vec![test]);

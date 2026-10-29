@@ -97,7 +97,7 @@ impl Env {
         let mut req = self.request(operation_type(action), command.clone());
         if action.is_destructive() {
             let phrase = confirmation_phrase("test", &targets);
-            let c = self.engine.confirm(self.id, command, phrase.clone());
+            let c = self.engine.confirm(Some(self.id), command, phrase.clone());
             req.confirmation = Some(ConfirmationProof {
                 token: c.token,
                 typed: phrase,

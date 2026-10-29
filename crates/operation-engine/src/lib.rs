@@ -183,7 +183,7 @@ impl OperationEngine {
     /// command for exactly this target, along with the typed `phrase`.
     pub fn confirm(
         &self,
-        environment_id: EnvironmentId,
+        environment_id: Option<EnvironmentId>,
         command: VagrantCommand,
         phrase: String,
     ) -> Confirmation {
@@ -333,14 +333,14 @@ impl OperationEngine {
         req: &OperationRequest,
     ) -> Result<(Operation, u64, CancellationToken), EngineError> {
         if req.command.is_destructive() {
-            let (Some(env), Some(proof)) = (req.environment_id, &req.confirmation) else {
+            let Some(proof) = &req.confirmation else {
                 return Err(EngineError::Confirmation(
                     "This action needs confirmation.".into(),
                 ));
             };
             self.inner
                 .confirmations
-                .redeem(proof, env, &req.command)
+                .redeem(proof, req.environment_id, &req.command)
                 .map_err(|m| EngineError::Confirmation(m.into()))?;
         }
         let (slot, token) = self.reserve(req)?;
@@ -360,17 +360,24 @@ impl OperationEngine {
     }
 
     /// Registers the request as active unless the same command is already
-    /// queued or running for the same environment.
+    /// queued or running for the same environment (or, for host-level
+    /// commands such as box changes, on the host).
     fn reserve(&self, req: &OperationRequest) -> Result<(u64, CancellationToken), EngineError> {
         let mut active = self.inner.active.lock().expect("lock");
-        if req.environment_id.is_some()
+        let checked = req.environment_id.is_some() || req.command.changes_boxes();
+        if checked
             && active
                 .values()
                 .any(|a| a.environment_id == req.environment_id && a.command == req.command)
         {
             return Err(EngineError::Conflict(format!(
-                "`{}` is already queued or running for this environment.",
-                command_line(&req.command)
+                "`{}` is already queued or running{}.",
+                command_line(&req.command),
+                if req.environment_id.is_some() {
+                    " for this environment"
+                } else {
+                    ""
+                }
             )));
         }
         let slot = self
@@ -490,6 +497,8 @@ impl OperationEngine {
                     r.exit_code,
                     Some(if req.command.is_mutating() {
                         "Cancelled. The machine may have been left part-way; check its state before continuing.".to_owned()
+                    } else if req.command.changes_boxes() {
+                        "Cancelled. Refresh the box list to see what is installed now.".to_owned()
                     } else {
                         "Cancelled.".to_owned()
                     }),

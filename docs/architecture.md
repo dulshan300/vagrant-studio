@@ -118,9 +118,13 @@ Implemented in `crates/operation-engine` (`scheduler.rs`, `lifecycle.rs`,
   every machine Vagrant reported, because a bare `vagrant up` skips
   `autostart: false` machines. Lifecycle actions are refused until a
   successful status check exists.
-- Box operations (`box add/remove/update`, Phase 6) will take a global box
-  lock for writing; `up` (which may download a box) and `box list` take it
-  for reading. The environment lock is always taken first.
+- Box changes (`box add/update/remove`, Phase 6) are host-level operations
+  (no environment) that take the global box lock for writing; `up` (which may
+  download a box) takes it for reading, so a box change waits for running
+  `up`s and holds new ones back. The environment lock is always taken first.
+  The Boxes page's `box list` and `box outdated --global` are unrecorded
+  read-only queries (`vagrant_adapter::query`) and don't wait for the lock. A
+  duplicate box change is refused like a duplicate lifecycle request.
 - Cancelling a queued operation removes it before it starts
   (`Cancelled before it started.`); Vagrant is never run for it.
 

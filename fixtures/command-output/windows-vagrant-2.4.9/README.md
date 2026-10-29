@@ -3,3 +3,7 @@ copies of the templates. CRLF line endings are intentional (see
 `.gitattributes`). `status-vmware-utility-unreachable.txt` was captured while
 the Vagrant VMware Utility service was stopped; it was recreated from the
 captured text after being accidentally overwritten, with content unchanged.
+
+Phase 6 (2026-10-29): `box-outdated-global.txt` is `vagrant box outdated --global
+--machine-readable` (only `ui` lines). `machine-index.json` is a copy of Vagrant's
+`~/.vagrant.d/data/machine-index/index` with the project folder paths renamed.

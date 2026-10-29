@@ -130,6 +130,13 @@ export const useOperationsStore = defineStore('operations', () => {
     return op
   }
 
+  /** Follows an operation started outside this store (e.g. a box change). */
+  function track(op: Operation) {
+    upsert(op)
+    logs.value[op.id] ??= []
+    return op
+  }
+
   async function cancel(id: string) {
     return operationsApi.cancel(id)
   }
@@ -175,6 +182,7 @@ export const useOperationsStore = defineStore('operations', () => {
     refreshStatus,
     validate,
     runLifecycle,
+    track,
     cancel,
     open,
     close,

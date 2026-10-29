@@ -1,0 +1,4 @@
+1793247079,,ui,success,* 'ubuntu/jammy64' for 'virtualbox' (v20241002.0.0) is up to date
+1793247081,,ui,success,* 'ubuntu/focal64' for 'virtualbox' (v20240821.0.1) is up to date
+1793247083,,ui,success,* 'hashicorp/bionic64' for 'virtualbox' (v1.0.282) is up to date
+1793247085,,ui,warn,* 'almalinux/9' for 'vmware_desktop' is outdated! Current: 9.6.20250522. Latest: 9.8.20260907

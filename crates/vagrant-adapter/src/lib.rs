@@ -1,6 +1,7 @@
 //! Vagrant CLI integration: locating the executable, building typed
 //! commands, running them and parsing their output.
 
+pub mod boxes;
 pub mod command;
 pub mod machine_readable;
 pub mod readiness;
@@ -61,6 +62,65 @@ pub async fn detect_version(runner: &dyn Runner, program: &Path) -> Result<Strin
         .ok_or_else(|| DetectError::UnexpectedOutput(output.trim().chars().take(300).collect()))
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum QueryError {
+    #[error("could not run Vagrant: {0}")]
+    Spawn(#[from] std::io::Error),
+    #[error("Vagrant did not respond within {} seconds", .0.as_secs())]
+    TimedOut(Duration),
+    #[error("{0}")]
+    Failed(String),
+}
+
+/// Runs a read-only `--machine-readable` command that isn't recorded as an
+/// operation (box list, update check) and returns its parsed lines.
+pub async fn query(
+    runner: &dyn Runner,
+    program: &Path,
+    command: &VagrantCommand,
+    timeout: Duration,
+) -> Result<Vec<machine_readable::Line>, QueryError> {
+    debug_assert!(!command.is_mutating() && !command.changes_boxes());
+    let mut stdout = String::new();
+    let mut stderr = String::new();
+    let result = runner
+        .run(
+            Invocation {
+                program: program.to_path_buf(),
+                args: command.args(),
+                working_dir: std::env::temp_dir(),
+                timeout: Some(timeout),
+                env: vec![],
+            },
+            Box::new(|line| {
+                let out = match line.stream {
+                    Stream::Stdout => &mut stdout,
+                    Stream::Stderr => &mut stderr,
+                };
+                out.push_str(&line.text);
+                out.push('\n');
+            }),
+            CancellationToken::new(),
+        )
+        .await?;
+    if result.termination == Termination::TimedOut {
+        return Err(QueryError::TimedOut(timeout));
+    }
+    let lines = machine_readable::parse(&stdout);
+    if result.success() {
+        return Ok(lines);
+    }
+    let message = match machine_readable::error_exit(&lines) {
+        Some(e) => e.message,
+        None if !stderr.trim().is_empty() => stderr.trim().chars().take(1000).collect(),
+        None => format!(
+            "Vagrant exited with code {}.",
+            result.exit_code.unwrap_or(-1)
+        ),
+    };
+    Err(QueryError::Failed(message))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -115,6 +175,19 @@ mod tests {
         let exe = dir.path().join("vagrant");
         std::fs::write(&exe, "").unwrap();
         assert_eq!(locate(Some(&exe), &NoVagrant), Some(exe));
+    }
+
+    #[tokio::test]
+    async fn queries_parse_output_or_report_vagrant_errors() {
+        let lines = query(
+            &Canned("1,,box-name,a/b\r\n1,,box-provider,virtualbox"),
+            Path::new("vagrant"),
+            &VagrantCommand::BoxList,
+            Duration::from_secs(5),
+        )
+        .await
+        .unwrap();
+        assert_eq!(machine_readable::parse_box_list(&lines)[0].name, "a/b");
     }
 
     #[tokio::test]

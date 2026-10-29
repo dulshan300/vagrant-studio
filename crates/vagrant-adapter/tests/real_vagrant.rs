@@ -67,3 +67,44 @@ async fn real_vagrant_version_and_multi_machine_status() {
         eprintln!("{} -> {:?} ({:?})", m.name, m.state, m.provider);
     }
 }
+
+/// Read-only: lists boxes, reads the machine index, checks catalogs for updates.
+#[tokio::test]
+#[ignore = "needs Vagrant installed on the host (and network for the update check)"]
+async fn real_vagrant_box_store_queries() {
+    use std::time::Duration;
+    use vagrant_studio_vagrant_adapter::boxes;
+
+    let vagrant = locate(None, &SystemPlatform).expect("Vagrant is installed and on PATH");
+    let lines = vagrant_studio_vagrant_adapter::query(
+        &ProcessRunner,
+        &vagrant,
+        &VagrantCommand::BoxList,
+        Duration::from_secs(120),
+    )
+    .await
+    .unwrap();
+    let installed = machine_readable::parse_box_list(&lines);
+    for b in &installed {
+        assert!(b.provider.is_some() && b.version.is_some(), "{b:?}");
+        eprintln!("box {b:?}");
+    }
+
+    let home = boxes::vagrant_home().expect("a home folder");
+    let machines = boxes::read_machine_index(&home).unwrap();
+    eprintln!("{} machines in {}", machines.len(), home.display());
+
+    let outdated = boxes::parse_outdated(
+        &vagrant_studio_vagrant_adapter::query(
+            &ProcessRunner,
+            &vagrant,
+            &VagrantCommand::BoxOutdated,
+            Duration::from_secs(600),
+        )
+        .await
+        .unwrap(),
+    );
+    eprintln!("{outdated:?}");
+    // One result per installed box version, whatever the catalogs say.
+    assert_eq!(outdated.len(), installed.len());
+}

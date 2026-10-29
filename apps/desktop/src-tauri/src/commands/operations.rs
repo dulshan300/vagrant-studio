@@ -42,7 +42,7 @@ async fn vagrant_override(projects: &ProjectService) -> CommandResult<Option<Pat
     Ok(projects.settings().await?.vagrant_path.map(PathBuf::from))
 }
 
-async fn vagrant_program(projects: &ProjectService) -> CommandResult<PathBuf> {
+pub(crate) async fn vagrant_program(projects: &ProjectService) -> CommandResult<PathBuf> {
     let override_path = vagrant_override(projects).await?;
     locate(override_path.as_deref(), &SystemPlatform).ok_or_else(|| {
         CommandError::unavailable(
@@ -221,7 +221,7 @@ pub async fn request_lifecycle_confirmation(
     let targets = lifecycle_targets(&engine, environment_id, &machines).await?;
     let phrase = confirmation_phrase(&env.name, &targets);
     Ok(engine.confirm(
-        environment_id,
+        Some(environment_id),
         VagrantCommand::Lifecycle {
             action,
             machines: targets,

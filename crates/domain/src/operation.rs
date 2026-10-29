@@ -58,6 +58,9 @@ pub enum OperationType {
     Status,
     Validate,
     BoxList,
+    BoxAdd,
+    BoxUpdate,
+    BoxRemove,
     Up,
     Halt,
     Reload,
@@ -75,6 +78,9 @@ impl OperationType {
             Self::Status => "status",
             Self::Validate => "validate",
             Self::BoxList => "box_list",
+            Self::BoxAdd => "box_add",
+            Self::BoxUpdate => "box_update",
+            Self::BoxRemove => "box_remove",
             Self::Up => "up",
             Self::Halt => "halt",
             Self::Reload => "reload",
@@ -91,6 +97,9 @@ impl OperationType {
             "status" => Self::Status,
             "validate" => Self::Validate,
             "box_list" => Self::BoxList,
+            "box_add" => Self::BoxAdd,
+            "box_update" => Self::BoxUpdate,
+            "box_remove" => Self::BoxRemove,
             "up" => Self::Up,
             "halt" => Self::Halt,
             "reload" => Self::Reload,
@@ -167,6 +176,7 @@ mod tests {
     #[test]
     fn unknown_types_are_preserved() {
         assert_eq!(OperationType::parse("box_list"), OperationType::BoxList);
+        assert_eq!(OperationType::parse("box_remove"), OperationType::BoxRemove);
         let future = OperationType::parse("snapshot_save");
         assert_eq!(future.as_str(), "snapshot_save");
         assert_eq!(serde_json::to_string(&future).unwrap(), "\"snapshot_save\"");

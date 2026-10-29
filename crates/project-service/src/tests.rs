@@ -863,3 +863,27 @@ async fn symlinked_vagrantfiles_are_not_replaced() {
     let err = h.service.vagrantfile(env.id).await.unwrap_err();
     assert!(matches!(err, ServiceError::Unsafe(_)), "{err}");
 }
+
+#[tokio::test]
+async fn finds_the_environment_rooted_in_a_folder() {
+    let h = Harness::new().await;
+    let details = h
+        .service
+        .create(create_req(h.path(""), Some("single-linux-vm")))
+        .await
+        .unwrap();
+    let env = &details.environments[0];
+    // Vagrant's machine index records paths with forward slashes on Windows.
+    let as_recorded = env.root_path.replace('\\', "/");
+    let found = h
+        .service
+        .environments_at(&[&as_recorded, &h.path("missing"), &h.path("")])
+        .await
+        .unwrap();
+    assert_eq!(
+        found[0].as_ref().map(|(e, p)| (e.id, p.as_str())),
+        Some((env.id, "Web Platform"))
+    );
+    assert_eq!(found[1], None);
+    assert_eq!(found[2], None, "the parent folder is not the environment");
+}

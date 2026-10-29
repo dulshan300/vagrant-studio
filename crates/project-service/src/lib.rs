@@ -552,6 +552,35 @@ impl ProjectService {
         Ok(settings)
     }
 
+    /// Every environment with its project's name.
+    pub async fn all_environments(&self) -> Result<Vec<(Environment, String)>> {
+        Ok(self.store.list_all_environments().await?)
+    }
+
+    /// For each folder, the registered environment rooted there (if any),
+    /// with its project's name. Folders that don't exist match nothing.
+    pub async fn environments_at(
+        &self,
+        folders: &[&str],
+    ) -> Result<Vec<Option<(Environment, String)>>> {
+        let environments: Vec<(PathBuf, (Environment, String))> = self
+            .all_environments()
+            .await?
+            .into_iter()
+            .filter_map(|e| Some((dunce::canonicalize(&e.0.root_path).ok()?, e)))
+            .collect();
+        Ok(folders
+            .iter()
+            .map(|folder| {
+                let folder = dunce::canonicalize(folder).ok()?;
+                environments
+                    .iter()
+                    .find(|(root, _)| *root == folder)
+                    .map(|(_, e)| e.clone())
+            })
+            .collect())
+    }
+
     /// An environment together with its project.
     pub async fn environment(&self, id: EnvironmentId) -> Result<(Project, Environment)> {
         let env = self

@@ -3,8 +3,8 @@
 //! Each environment has a read/write lock: mutating commands take it for
 //! writing, so at most one runs per environment, and read-only commands
 //! (`status`, `validate`) share it. Commands that use the host's box store
-//! also take the global box lock; box changes (Phase 6) will take it for
-//! writing. Tokio's locks are fair, so waiting operations start in request
+//! also take the global box lock; box changes (`box add/update/remove`)
+//! take it for writing, so they wait for running `up`s and block new ones. Tokio's locks are fair, so waiting operations start in request
 //! order. The environment lock is always taken before the box lock.
 
 use std::collections::HashMap;
@@ -63,7 +63,9 @@ impl Locks {
                 Held::Read(lock.read_owned().await)
             });
         }
-        if command.uses_boxes() {
+        if command.changes_boxes() {
+            held.push(Held::Write(self.boxes.clone().write_owned().await));
+        } else if command.uses_boxes() {
             held.push(Held::Read(self.boxes.clone().read_owned().await));
         }
         held

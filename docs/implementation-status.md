@@ -3,9 +3,9 @@
 _Last updated: 2026-10-29_
 
 ## Current phase
-**Phase 5 — Vagrantfile editor: complete (Windows), walkthrough passed by the user
-2026-10-29.** Design: `docs/vagrantfile-editor.md`. Next: Phase 6, boxes, providers,
-networking and provisioning.
+**Phase 6 — Boxes, providers, networking, provisioning: in progress** (branch
+`phase-6-boxes-providers`). Done: box management (automated tests pass; manual
+walkthrough `docs/testing/manual-boxes.md` pending). Next: `crates/provider-registry`.
 
 ## Completed phases
 - **Phase 0 — Inspection and planning** (2026-10-28): architecture, roadmap,
@@ -31,6 +31,33 @@ networking and provisioning.
   data, atomic save under the environment lock. Automated tests pass on Linux and as
   Windows binaries; 14 generated files pass `vagrant validate`; user walkthrough of
   `docs/testing/manual-vagrantfile-editor.md` passed with no issues.
+
+## Phase 6 progress (2026-10-29)
+| Task | State |
+|---|---|
+| Box management: list with machine usage, update check, add (catalog / URL / file), update, remove with typed confirmation and token; box write lock | Done; walkthrough pending |
+| `crates/provider-registry` (capabilities, docker adapter, VirtualBox/Vagrant compatibility, Hyper-V coexistence) | Not started |
+| Networking: public networks in the visual subset, host-port conflict detection | Not started |
+| Shell provisioner management and results | Not started |
+| VirtualBox verification on Windows 11 and Ubuntu | Not started (needs the user) |
+
+| Check | Result |
+|---|---|
+| Rust tests, Linux | Pass: vagrant-adapter 34 (box arguments, outdated parser, machine index, query), operation-engine 28 (box confirmation, box lock, duplicate refusal), project-service 31, project-store 18, domain 15 |
+| Same crates as Windows binaries | Pass |
+| Opt-in real Windows Vagrant 2.4.9 (`--include-ignored`) | Pass: `box list` (4 boxes), machine index (3 machines), `box outdated --global` (1 outdated) |
+| clippy `-D warnings` / rustfmt | Pass |
+| Frontend lint, format, typecheck, tests | Pass, 59 tests (7 new: box helpers, Boxes page flow) |
+| Manual walkthrough on Windows (`docs/testing/manual-boxes.md`) | Pending |
+
+Facts checked against Vagrant 2.4.9 (Windows and its source): `box outdated --global
+--machine-readable` prints only `ui` lines; `box remove` decides "in use" from the
+machine index (name, provider, version, architecture) and `--force` skips its prompt;
+`box add` asks interactively for a provider when a box offers several, so the UI
+requires one for catalog boxes; `box list` doesn't load a Vagrantfile from parent
+folders. The machine index records architecture `auto` while `box list` shows
+`amd64`, so the app treats `auto` as matching any architecture (it may over-report
+use, never under-report).
 
 ## Phase 5 results (2026-10-28)
 | Check | Result |
@@ -146,9 +173,10 @@ Vagrant prints guest output to stdout; failure summaries of human-output command
 include the last output lines.
 
 ## Next recommended task
-1. Push and confirm the Windows CI run for Phases 3–5.
-2. Phase 6: boxes, provider registry, networking and provisioning management
-   (extends the visual subset: public networks, more provider options).
+1. Manual box walkthrough on Windows (`docs/testing/manual-boxes.md`).
+2. Phase 6 continued: `crates/provider-registry`, then networking (public
+   networks, port conflicts), then provisioning.
+3. Push and confirm the Windows CI run for Phases 3–6.
 3. Optional: VirtualBox lifecycle run of `docs/testing/manual-lifecycle.md` on Windows.
 4. Before release: install the CI NSIS installer by hand on Windows 11.
 5. Later: re-enable the Ubuntu/Fedora CI jobs.

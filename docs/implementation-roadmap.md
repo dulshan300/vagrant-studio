@@ -70,7 +70,7 @@ Acceptance: app launches on target OSes; UI navigable; CI runs tests; no new war
 - [x] Manual walkthrough on Windows (`docs/testing/manual-vagrantfile-editor.md`): passed, user, 2026-10-29
 
 ## Phase 6 — Boxes, providers, networking, provisioning
-- [ ] Box list/add/remove/update/inspect with in-use explanation
+- [x] Box list/add/remove/update/update check with in-use explanation (machine index), box write lock, typed confirmation + token for remove; manual plan `docs/testing/manual-boxes.md` (walkthrough pending)
 - [ ] `crates/provider-registry`: VirtualBox adapter, docker adapter, capability reporting, prerequisite findings
 - [ ] Forwarded ports (+ host-port conflict detection), private/public networks, synced folders
 - [ ] Shell provisioner management and results

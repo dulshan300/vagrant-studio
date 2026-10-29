@@ -35,7 +35,8 @@ pub struct ConfirmationProof {
 }
 
 struct Pending {
-    environment_id: EnvironmentId,
+    /// `None` for host-level commands such as `box remove`.
+    environment_id: Option<EnvironmentId>,
     command: VagrantCommand,
     phrase: String,
     expires_at: OffsetDateTime,
@@ -49,7 +50,7 @@ pub(crate) struct Confirmations {
 impl Confirmations {
     pub(crate) fn issue(
         &self,
-        environment_id: EnvironmentId,
+        environment_id: Option<EnvironmentId>,
         command: VagrantCommand,
         phrase: String,
     ) -> Confirmation {
@@ -78,7 +79,7 @@ impl Confirmations {
     pub(crate) fn redeem(
         &self,
         proof: &ConfirmationProof,
-        environment_id: EnvironmentId,
+        environment_id: Option<EnvironmentId>,
         command: &VagrantCommand,
     ) -> Result<(), &'static str> {
         let pending = self.pending.lock().expect("lock").remove(&proof.token);
@@ -90,7 +91,7 @@ impl Confirmations {
         }
         if p.environment_id != environment_id || &p.command != command {
             return Err(
-                "The confirmation was given for different machines. Confirm the action again.",
+                "The confirmation was given for a different target. Confirm the action again.",
             );
         }
         if proof.typed.trim() != p.phrase {
