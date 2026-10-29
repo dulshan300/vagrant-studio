@@ -13,7 +13,10 @@ tests; walkthrough (`docs/testing/manual-network.md`) passed on Windows (user,
 automated tests (named provisioners, run all/chosen, Up/Reload with
 `--provision`, per-machine results); walkthrough
 (`docs/testing/manual-provisioning.md`) passed on Windows (user, 2026-10-29).
-Remaining: VirtualBox verification on Windows 11 and Ubuntu (needs the user).
+VirtualBox **Verified on Windows 11** (smoke test and walkthrough
+`docs/testing/manual-virtualbox.md` passed, user, 2026-10-29). Phase 6 is
+complete for Windows. Remaining: VirtualBox verification on Ubuntu (waits for
+the Linux work to resume).
 
 ## Completed phases
 - **Phase 0 — Inspection and planning** (2026-10-28): architecture, roadmap,
@@ -47,7 +50,7 @@ Remaining: VirtualBox verification on Windows 11 and Ubuntu (needs the user).
 | `crates/provider-registry` (capabilities, docker adapter, VirtualBox/Vagrant compatibility, Hyper-V coexistence) | Done (automated + real-host detection on Windows); Providers page accepted by the user 2026-10-29 |
 | Networking: public networks in the visual subset, host-port conflict detection | Done in code; automated tests pass; 14 generated files pass `vagrant validate`; walkthrough (`docs/testing/manual-network.md`) **passed** on Windows (user, 2026-10-29, "test ok", no itemized step results) |
 | Shell provisioner management and results: named provisioners in the visual subset, Provision dialog (all / chosen names via `--provision-with`; Start/Restart with `--provision`), backend name check, results parsed from output and stored per machine (migration 0003), shown on machine rows and in the operation drawer | Done in code; automated tests pass; 14 generated files pass `vagrant validate`; walkthrough (`docs/testing/manual-provisioning.md`) **passed** on Windows with VMware Desktop (user, 2026-10-29, "all pass", no itemized step results) |
-| VirtualBox verification on Windows 11 and Ubuntu | Windows: CLI smoke test passed under Hyper-V (2026-10-29: up, provision, suspend/resume, halt, destroy); walkthrough `docs/testing/manual-virtualbox.md` **not yet run**. Ubuntu: not started |
+| VirtualBox verification on Windows 11 and Ubuntu | Windows: **Verified** 2026-10-29. CLI smoke test passed under Hyper-V (up, provision, suspend/resume, halt, destroy); walkthrough `docs/testing/manual-virtualbox.md` passed (user, no itemized step results; UAC prompt not reported). Added to `VERIFIED` in `crates/provider-registry`. Ubuntu: not started |
 
 | Check | Result |
 |---|---|
@@ -104,7 +107,7 @@ New capability: `core:window:allow-destroy`, used by the unsaved-changes guard o
 | clippy `-D warnings` / rustfmt | Pass |
 | Frontend lint, format, typecheck, tests | Pass, 37 tests |
 | Manual lifecycle on Windows, VMware Desktop | **Accepted by the user** 2026-10-28 (no itemized step results). Seen during use: start/provision runs, a forwarded-port collision on resume (Vagrant error, reported as a failed operation), a provisioner failure whose summary hid the cause (fixed in `69e74ac`), VMX `pcislotnumber` warnings from the vmware plugin (harmless) |
-| Manual lifecycle on Windows, VirtualBox | Not reported |
+| Manual lifecycle on Windows, VirtualBox | **Passed** 2026-10-29 as part of `docs/testing/manual-virtualbox.md` (user) |
 | Windows CI for Phases 3–4 | **Pass** (run 40832387355, `7822262` on `main`, 2026-10-29): all checks, MSVC build, NSIS installer artifact (4.6 MB); covers Phases 2–6 |
 
 ## Phase 3 results (2026-10-28)
@@ -192,8 +195,8 @@ Vagrant prints guest output to stdout; failure summaries of human-output command
 include the last output lines.
 
 ## Next recommended task
-1. Phase 6: VirtualBox verification on Windows 11 (and Ubuntu), recorded in
-   `docs/provider-capabilities.md`; then Phase 6 is complete.
-2. Optional: VirtualBox lifecycle run of `docs/testing/manual-lifecycle.md` on Windows.
+1. Merge Phase 6 into `main` and check Windows CI.
+2. Phase 7 (see the roadmap). VirtualBox verification on Ubuntu waits for the
+   Linux work to resume.
 3. Before release: install the CI NSIS installer by hand on Windows 11.
 4. Later: re-enable the Ubuntu/Fedora CI jobs.

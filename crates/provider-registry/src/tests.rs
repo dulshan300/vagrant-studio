@@ -159,8 +159,9 @@ async fn everything_installed_and_running() {
     assert_eq!(ids, ["virtualbox", "vmware_desktop", "docker"]);
     for p in &r.providers {
         assert_eq!(p.state, ProviderState::Ready, "{}: {:?}", p.id, p.findings);
-        // Nothing has passed the full test plan yet.
-        assert_eq!(p.support, SupportLevel::Detected);
+        // Only VirtualBox has passed the full test plan, on Windows.
+        let verified = p.id == "virtualbox";
+        assert_eq!(p.support == SupportLevel::Verified, verified, "{}", p.id);
     }
     let vb = provider(&r, "virtualbox");
     assert_eq!(vb.version.as_deref(), Some("7.1.18"));
@@ -307,6 +308,8 @@ async fn linux_virtualbox_needs_its_kernel_module() {
     let vb = provider(&r, "virtualbox");
     // The hypervisor check applies to Windows only.
     assert_eq!(vb.state, ProviderState::Ready, "{:?}", vb.findings);
+    // Verified on Windows doesn't carry over to Linux.
+    assert_eq!(vb.support, SupportLevel::Detected);
 }
 
 #[tokio::test]

@@ -104,7 +104,7 @@ pub enum SupportLevel {
 
 /// Providers that passed the full test plan, per host OS. Add an entry only
 /// together with a row in the verification log of docs/provider-capabilities.md.
-pub const VERIFIED: &[(&str, HostOs)] = &[];
+pub const VERIFIED: &[(&str, HostOs)] = &[("virtualbox", HostOs::Windows)];
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]

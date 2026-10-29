@@ -60,7 +60,7 @@ Acceptance: app launches on target OSes; UI navigable; CI runs tests; no new war
 - [x] Typed confirmation dialog plus one-time backend confirmation tokens bound to the exact target for `destroy`
 - [x] Status refresh after every mutating operation (inside the same operation and lock), expected-state warnings; cancellation and termination recorded, then state re-read
 - [x] Integration test with the docker provider (Linux, opt-in, passing) and manual test plan (`docs/testing/manual-lifecycle.md`)
-- [x] Manual lifecycle use on Windows with VMware Desktop (accepted by the user); VirtualBox lifecycle not yet reported
+- [x] Manual lifecycle use on Windows with VMware Desktop (accepted by the user); VirtualBox lifecycle passed 2026-10-29 (Phase 6 verification)
 
 ## Phase 5 — Vagrantfile editor (complete 2026-10-29, Windows)
 - [x] Raw editor (CodeMirror 6, Ruby highlighting, search/replace)
@@ -74,7 +74,8 @@ Acceptance: app launches on target OSes; UI navigable; CI runs tests; no new war
 - [x] `crates/provider-registry`: VirtualBox, VMware Desktop and docker adapters, capability flags and support level, prerequisite findings (VirtualBox/Vagrant version table, Windows hypervisor, `vboxdrv`, Docker daemon); Suspend/Resume hidden for providers without `lifecycle.suspend`. Automated tests pass on Linux and as Windows binaries; real-host detection checked on Windows. Providers page accepted by the user on Windows 2026-10-29
 - [x] Forwarded ports (+ host-port conflict detection), private/public networks, synced folders: public networks (with VirtualBox adapter suggestions and a warning when none is set) added to the visual subset; host ports checked like Vagrant does; forwarded ports, private networks and synced folders were done in Phase 5. Walkthrough `docs/testing/manual-network.md` passed on Windows (user, 2026-10-29)
 - [x] Shell provisioner management and results: named provisioners in the visual subset, Provision dialog (all or chosen names; Start/Restart with `--provision`), results per machine from the command output (migration 0003). Walkthrough `docs/testing/manual-provisioning.md` passed on Windows (user, 2026-10-29)
-- [ ] VirtualBox verification on Windows 11 and Ubuntu recorded in provider-capabilities.md
+- [x] VirtualBox verification on Windows 11 recorded in provider-capabilities.md (smoke test and `docs/testing/manual-virtualbox.md` passed, user, 2026-10-29; listed in `VERIFIED`)
+- [ ] VirtualBox verification on Ubuntu (waits for the Linux work to resume)
 
 ## Phase 7 — Developer workspace
 - [ ] SSH: external terminal launch first, then an embedded PTY terminal (evaluate portable-pty + xterm.js)

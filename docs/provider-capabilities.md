@@ -21,9 +21,9 @@ capability flags. The UI enables an action only when the flag is set **and**
 detection succeeded on this host. A provider that detection didn't find
 reports no capabilities. Its support level is **Verified** only when it is
 listed in `VERIFIED` (crates/provider-registry/src/lib.rs) for the host OS,
-which happens together with a row in the verification log below; today that
-list is empty, so every installed provider shows as *Detected, not yet
-verified*.
+which happens together with a row in the verification log below. Today only
+VirtualBox on Windows is listed; every other installed provider shows as
+*Detected, not yet verified*.
 
 Declared capabilities:
 
@@ -54,7 +54,7 @@ in the registry are not limited (Vagrant decides).
 
 | Provider | Windows 11 | Ubuntu 24.04 | Fedora | Status / phase |
 |---|---|---|---|---|
-| **VirtualBox 7.1** | First path | First path | Detected (needs RPM Fusion and kernel modules) | Integration in Phases 3–6; target **Verified** on Windows and Ubuntu for the first release |
+| **VirtualBox 7.1** | First path | First path | Detected (needs RPM Fusion and kernel modules) | **Verified** on Windows 11 (2026-10-29); Ubuntu verification pending |
 | Docker (`docker` provider) | — | Test harness | Test harness | Used for automated lifecycle integration tests on Linux CI; shown to users as a container provider, clearly separated from VMs |
 | libvirt (vagrant-libvirt plugin) | n/a | Candidate | **Preferred Fedora candidate** | Phase 8 |
 | Hyper-V | Candidate | n/a | n/a | Phase 8 (needs admin and conflicts with VirtualBox; see R8) |
@@ -97,3 +97,4 @@ virtualization or network settings itself.
 | 2026-10-28 | Windows 11 x64 | 2.4.9 | VMware Desktop | **Lifecycle used through the app** (Phase 4 build), accepted by the user without itemized step results. Observed: forwarded-port collision when resuming (Vagrant can't move ports on a suspended machine; Reload fixes it), template provisioner failure (cause not recorded), plugin warnings about `ethernet0/1.pcislotnumber` in the bento box VMX (harmless today). Not yet **Verified** per the full test plan. |
 | 2026-10-29 | Windows 11 x64 | 2.4.9 | VirtualBox 7.1.18, VMware Desktop, Docker 29.7.2 | **Detection only** (`provider-registry` opt-in `real_host` test): VirtualBox supported by Vagrant 2.4.9, hypervisor bit set (WSL 2 is enabled) so VirtualBox needs attention; VMware ready; Docker daemon reachable. No lifecycle. |
 | 2026-10-29 | Windows 11 x64 | 2.4.9 | VMware Desktop | **Shell provisioning through the app** (Phase 6 build, `almalinux/9`, two machines): named and unnamed provisioners, `--provision-with`, `run: "never"`, `up`/`reload --provision`, failing and cancelled provisioners. Walkthrough `docs/testing/manual-provisioning.md` passed (user, no itemized step results). Output captured the same day as parser fixtures. Not yet **Verified** per the full test plan. |
+| 2026-10-29 | Windows 11 x64 (Hyper-V active) | 2.4.9 | VirtualBox 7.1.18 | **Verified.** CLI smoke test (`ubuntu/jammy64`: up 84 s, `--provision-with`, suspend → `saved`, resume, halt, destroy), then walkthrough `docs/testing/manual-virtualbox.md` through the app (Phase 6 build, `bento/ubuntu-24.04`): provider check, boxes, lifecycle (web-database template), private network ping, forwarded port, public network, host-port check, provisioning. All passed (user, no itemized step results; whether a UAC prompt appeared for the host-only adapter was not reported). Runs on top of Hyper-V; the hypervisor warning stays. |
