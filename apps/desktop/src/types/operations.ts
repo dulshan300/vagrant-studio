@@ -82,11 +82,29 @@ export interface Finding {
   fix: string | null
 }
 
+/** Mirrors `vagrant_studio_provider_registry::Capability`. */
+export type Capability =
+  | 'lifecycle.basic'
+  | 'lifecycle.suspend'
+  | 'provision.shell'
+  | 'network.forwarded_port'
+  | 'network.private'
+  | 'network.public'
+  | 'synced_folder.default'
+  | 'config.cpu_memory'
+  | 'ssh'
+
+/** Mirrors `vagrant_studio_provider_registry::ProviderReport`. */
 export interface ProviderCheck {
   id: string
   name: string
+  kind: 'vm' | 'container'
   state: 'ready' | 'attention' | 'unavailable'
+  /** `verified` only after the full test plan passed on this host OS. */
+  support: 'verified' | 'detected' | 'unavailable'
   version: string | null
+  /** Empty unless detection found the provider. */
+  capabilities: Capability[]
   findings: Finding[]
 }
 

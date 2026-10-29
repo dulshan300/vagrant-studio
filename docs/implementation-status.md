@@ -5,7 +5,9 @@ _Last updated: 2026-10-29_
 ## Current phase
 **Phase 6 — Boxes, providers, networking, provisioning: in progress** (branch
 `phase-6-boxes-providers`). Done: box management (automated tests pass; manual
-walkthrough on Windows accepted by the user 2026-10-29). Next: `crates/provider-registry`.
+walkthrough on Windows accepted by the user 2026-10-29); `crates/provider-registry` (automated
+tests pass; real detection checked on Windows; Providers page awaits a look from the user).
+Next: networking.
 
 ## Completed phases
 - **Phase 0 — Inspection and planning** (2026-10-28): architecture, roadmap,
@@ -36,7 +38,7 @@ walkthrough on Windows accepted by the user 2026-10-29). Next: `crates/provider-
 | Task | State |
 |---|---|
 | Box management: list with machine usage, update check, add (catalog / URL / file), update, remove with typed confirmation and token; box write lock | Done; Windows walkthrough accepted |
-| `crates/provider-registry` (capabilities, docker adapter, VirtualBox/Vagrant compatibility, Hyper-V coexistence) | Not started |
+| `crates/provider-registry` (capabilities, docker adapter, VirtualBox/Vagrant compatibility, Hyper-V coexistence) | Done (automated + real-host detection on Windows); Providers page not yet reviewed by the user |
 | Networking: public networks in the visual subset, host-port conflict detection | Not started |
 | Shell provisioner management and results | Not started |
 | VirtualBox verification on Windows 11 and Ubuntu | Not started (needs the user) |
@@ -49,6 +51,9 @@ walkthrough on Windows accepted by the user 2026-10-29). Next: `crates/provider-
 | clippy `-D warnings` / rustfmt | Pass |
 | Frontend lint, format, typecheck, tests | Pass, 59 tests (7 new: box helpers, Boxes page flow) |
 | Manual walkthrough on Windows (`docs/testing/manual-boxes.md`) | **Accepted by the user** 2026-10-29 ("all good", no itemized step results) |
+| provider-registry tests, Linux and as Windows binaries | Pass, 14 (adapters with fake runner/platform/probe, VirtualBox version table, serialization); vagrant-adapter now 32 (provider checks moved out) |
+| Opt-in `real_host` test (`cargo test -p vagrant-studio-provider-registry --test real_host -- --ignored --nocapture`) | Windows: Vagrant 2.4.9 + plugin; VirtualBox 7.1.18 supported, hypervisor bit set → needs attention (warning); VMware ready; Docker 29.7.2 ready. WSL: only Docker installed; the VMware Utility port shows as reachable because WSL forwards localhost to Windows (dev setup only) |
+| Frontend after provider-registry | Pass, 60 tests (capability-gated Suspend/Resume) |
 
 Facts checked against Vagrant 2.4.9 (Windows and its source): `box outdated --global
 --machine-readable` prints only `ui` lines; `box remove` decides "in use" from the
@@ -173,9 +178,11 @@ Vagrant prints guest output to stdout; failure summaries of human-output command
 include the last output lines.
 
 ## Next recommended task
-1. Phase 6 continued: `crates/provider-registry`, then networking (public
-   networks, port conflicts), then provisioning.
-2. Push and confirm the Windows CI run for Phases 3–6.
-3. Optional: VirtualBox lifecycle run of `docs/testing/manual-lifecycle.md` on Windows.
-4. Before release: install the CI NSIS installer by hand on Windows 11.
-5. Later: re-enable the Ubuntu/Fedora CI jobs.
+1. Have the user look at the Providers page on Windows (support level,
+   capabilities, Docker card, Hyper-V warning on VirtualBox).
+2. Phase 6 continued: networking (public networks, port conflicts), then
+   provisioning.
+3. Push and confirm the Windows CI run for Phases 3–6.
+4. Optional: VirtualBox lifecycle run of `docs/testing/manual-lifecycle.md` on Windows.
+5. Before release: install the CI NSIS installer by hand on Windows 11.
+6. Later: re-enable the Ubuntu/Fedora CI jobs.

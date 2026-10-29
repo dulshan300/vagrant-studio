@@ -16,8 +16,25 @@ same test plan (ADR-0003).
 
 ## Capability model
 
-Each `ProviderAdapter` reports a set of capability flags. The UI enables an
-action only when the flag is set **and** detection succeeded on this host.
+Each `ProviderAdapter` (`crates/provider-registry`) reports a set of
+capability flags. The UI enables an action only when the flag is set **and**
+detection succeeded on this host. A provider that detection didn't find
+reports no capabilities. Its support level is **Verified** only when it is
+listed in `VERIFIED` (crates/provider-registry/src/lib.rs) for the host OS,
+which happens together with a row in the verification log below; today that
+list is empty, so every installed provider shows as *Detected, not yet
+verified*.
+
+Declared capabilities:
+
+| Provider | Capabilities |
+|---|---|
+| VirtualBox, VMware Desktop | all of the above except `snapshot` and `metrics` |
+| Docker (containers) | `lifecycle.basic`, `network.forwarded_port`, `synced_folder.default`. No `lifecycle.suspend` (refused by the provider, see log), no `config.cpu_memory`; `ssh` and `provision.shell` need an SSH-enabled image, so they are not claimed |
+
+Used so far: machine actions hide Suspend and Resume for a machine whose
+provider lacks `lifecycle.suspend`. Providers that aren't detected or aren't
+in the registry are not limited (Vagrant decides).
 
 | Capability | Description |
 |---|---|
@@ -55,6 +72,17 @@ documented support range instead of blocking.
 - Host conflicts: Hyper-V enabled on Windows while VirtualBox is in use;
   missing `vboxdrv` kernel module or `/dev/kvm` access on Linux.
 
+Implemented (Phase 6):
+
+| Provider | Checks |
+|---|---|
+| VirtualBox | `VBoxManage` on PATH or in the default install folder; `VBoxManage --version`; whether this Vagrant has a driver for that `major.minor` (table from each release's `plugins/providers/virtualbox/driver/meta.rb`: Vagrant 2.4.9 supports 4.0–7.2; unsupported is an error; an unknown Vagrant release is a warning, never a guess); Windows: CPUID "hypervisor present" bit (set when Hyper-V, WSL 2, Windows Sandbox or Memory Integrity run) is a warning (R8); Linux: `/dev/vboxdrv` missing is an error |
+| VMware Desktop | `vmrun`; plugin `vagrant-vmware-desktop`; Vagrant VMware Utility reachable on 127.0.0.1:9922 |
+| Docker | `docker`; daemon reachable (`docker version --format {{.Server.Version}}`), quoting Docker's error when not |
+
+A provider is *unavailable* when its executable is missing, *needs
+attention* when any check is a warning or error, and *ready* otherwise.
+
 Every check returns a **finding** (ok, warning or error) with a
 human-readable fix. Vagrant Studio never installs software or changes host
 virtualization or network settings itself.
@@ -67,3 +95,4 @@ virtualization or network settings itself.
 | 2026-10-28 | Windows 11 x64 | 2.4.9 | VirtualBox 7.1.18 | Read-only only: `status` (not created), box list, validate. Lifecycle not tested. |
 | 2026-10-28 | WSL2 Ubuntu 24.04 (test harness) | 2.4.9 (Linux) | docker (Docker 29.7.2) | **Lifecycle through the engine:** status, `up` of named machines (including an `autostart: false` one), halt, reload, destroy with confirmation; follow-up status after each. `suspend` is refused by the provider ("not supported with the Docker provider"). Automated: `docker_lifecycle` test (opt-in). |
 | 2026-10-28 | Windows 11 x64 | 2.4.9 | VMware Desktop | **Lifecycle used through the app** (Phase 4 build), accepted by the user without itemized step results. Observed: forwarded-port collision when resuming (Vagrant can't move ports on a suspended machine; Reload fixes it), template provisioner failure (cause not recorded), plugin warnings about `ethernet0/1.pcislotnumber` in the bento box VMX (harmless today). Not yet **Verified** per the full test plan. |
+| 2026-10-29 | Windows 11 x64 | 2.4.9 | VirtualBox 7.1.18, VMware Desktop, Docker 29.7.2 | **Detection only** (`provider-registry` opt-in `real_host` test): VirtualBox supported by Vagrant 2.4.9, hypervisor bit set (WSL 2 is enabled) so VirtualBox needs attention; VMware ready; Docker daemon reachable. No lifecycle. |

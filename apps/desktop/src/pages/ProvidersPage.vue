@@ -7,6 +7,7 @@ import FindingList from '@/components/host/FindingList.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader } from '@/components/ui/card'
+import { CAPABILITY_LABEL, SUPPORT_LABEL } from '@/lib/providers'
 import { cn } from '@/lib/utils'
 import { useOperationsStore } from '@/stores/operations'
 
@@ -67,12 +68,29 @@ const STATE = {
             </Badge>
           </template>
         </CardHeader>
-        <div class="px-5 py-4"><FindingList :findings="p.findings" /></div>
+        <div class="space-y-4 px-5 py-4">
+          <p v-if="p.kind === 'container'" class="text-xs text-muted">
+            Runs containers, not virtual machines: boxes and VM settings such as CPU and memory
+            don't apply.
+          </p>
+          <FindingList :findings="p.findings" />
+          <div v-if="p.capabilities.length">
+            <h3 class="mb-1.5 text-xs font-medium text-muted">
+              Supports · {{ SUPPORT_LABEL[p.support] }}
+            </h3>
+            <ul class="flex flex-wrap gap-1.5">
+              <li v-for="c in p.capabilities" :key="c">
+                <Badge>{{ CAPABILITY_LABEL[c] }}</Badge>
+              </li>
+            </ul>
+          </div>
+        </div>
       </Card>
     </div>
     <p class="text-xs text-muted">
-      Only providers Vagrant Studio has integration for are listed. VMware Desktop is the provider
-      being verified on Windows first; other providers will appear as support is tested.
+      Only providers Vagrant Studio has integration for are listed. “Detected” means Vagrant can use
+      the provider here, but Vagrant Studio hasn't yet verified it on this operating system; none
+      has passed the full verification plan so far. Docker is mainly used for automated tests.
     </p>
   </div>
 </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { CircleAlert, LoaderCircle } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import StatusBadge from '@/components/status/StatusBadge.vue'
@@ -14,6 +14,7 @@ import {
   targetMachines,
 } from '@/lib/operations'
 import { relativeTime } from '@/lib/projects'
+import { hasBackend } from '@/services/app'
 import { errorMessage } from '@/services/errors'
 import { useOperationsStore } from '@/stores/operations'
 import type { EnvironmentStatus, LifecycleAction, Operation } from '@/types/operations'
@@ -21,6 +22,11 @@ import type { Environment } from '@/types/projects'
 
 const props = defineProps<{ environment: Environment; status: EnvironmentStatus }>()
 const operations = useOperationsStore()
+// Provider capabilities (e.g. no suspend for Docker) come from the host checks.
+onMounted(() => {
+  if (hasBackend() && !operations.readiness && !operations.readinessLoading)
+    void operations.checkHost()
+})
 
 const selected = ref<string[]>([])
 const actionError = ref<string | null>(null)
@@ -28,7 +34,12 @@ const destroyOpen = ref(false)
 const destroyTargets = ref<string[]>([])
 
 const machines = computed(() =>
-  props.status.machines.map((m) => ({ ...m, ui: machineState(m.state) })),
+  props.status.machines.map((m) => ({
+    ...m,
+    ui: machineState(m.state),
+    capabilities:
+      operations.readiness?.providers.find((p) => p.id === m.provider)?.capabilities ?? [],
+  })),
 )
 // Drop selections for machines Vagrant no longer reports.
 watch(machines, (list) => {
@@ -57,7 +68,7 @@ function pendingFor(name: string): Operation[] {
 function allowed(action: LifecycleAction): boolean {
   return machines.value
     .filter((m) => targets.value.includes(m.name))
-    .some((m) => actionsFor(m.ui).includes(action))
+    .some((m) => actionsFor(m.ui, m.capabilities).includes(action))
 }
 
 function toggleAll() {

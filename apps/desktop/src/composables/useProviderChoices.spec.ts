@@ -5,8 +5,11 @@ import type { ProviderCheck } from '@/types/operations'
 const check = (id: string, state: ProviderCheck['state'], problem?: string): ProviderCheck => ({
   id,
   name: id,
+  kind: 'vm',
   state,
+  support: state === 'unavailable' ? 'unavailable' : 'detected',
   version: null,
+  capabilities: [],
   findings: problem ? [{ level: 'error', message: problem, fix: null }] : [],
 })
 

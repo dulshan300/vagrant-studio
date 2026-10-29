@@ -1,0 +1,21 @@
+[package]
+name = "vagrant-studio-provider-registry"
+description = "Provider capability model, detection and prerequisite findings"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+serde.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+vagrant-studio-platform.workspace = true
+vagrant-studio-vagrant-adapter.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[lints]
+workspace = true

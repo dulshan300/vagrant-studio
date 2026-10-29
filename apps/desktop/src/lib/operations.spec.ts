@@ -77,6 +77,16 @@ describe('lifecycle actions', () => {
     expect(actionsFor('unknown')).toEqual(LIFECYCLE_ACTIONS)
   })
 
+  it('hides suspend and resume for providers without that capability', () => {
+    const docker = ['lifecycle.basic', 'network.forwarded_port'] as const
+    expect(actionsFor('running', docker)).not.toContain('suspend')
+    expect(actionsFor('unknown', docker)).not.toContain('resume')
+    expect(actionsFor('running', docker)).toContain('halt')
+    expect(actionsFor('running', ['lifecycle.basic', 'lifecycle.suspend'])).toContain('suspend')
+    // Undetected providers aren't limited.
+    expect(actionsFor('running', [])).toContain('suspend')
+  })
+
   it('picks a one-click action per state', () => {
     expect(primaryAction('running')).toBe('halt')
     expect(primaryAction('stopped')).toBe('up')

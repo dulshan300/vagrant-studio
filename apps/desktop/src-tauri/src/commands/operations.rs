@@ -12,7 +12,7 @@ use vagrant_studio_operation_engine::{
 };
 use vagrant_studio_platform::SystemPlatform;
 use vagrant_studio_project_service::ProjectService;
-use vagrant_studio_vagrant_adapter::readiness::{Checker, HostReadiness, TcpProbe};
+use vagrant_studio_provider_registry::{HostReadiness, Registry, SystemProbe};
 use vagrant_studio_vagrant_adapter::{
     LifecycleAction, MachineName, ProcessRunner, VagrantCommand, locate,
 };
@@ -56,14 +56,14 @@ pub async fn get_host_readiness(
     projects: State<'_, ProjectService>,
 ) -> CommandResult<HostReadiness> {
     let override_path = vagrant_override(&projects).await?;
-    Ok(Checker {
-        runner: &ProcessRunner,
-        platform: &SystemPlatform,
-        probe: &TcpProbe,
-        vagrant_override: override_path.as_deref(),
-    }
-    .check()
-    .await)
+    Ok(Registry::default()
+        .check_host(
+            &ProcessRunner,
+            &SystemPlatform,
+            &SystemProbe,
+            override_path.as_deref(),
+        )
+        .await)
 }
 
 /// What to run in an environment, beyond the command itself.

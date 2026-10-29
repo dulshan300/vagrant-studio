@@ -4639,6 +4639,7 @@ dependencies = [
  "vagrant-studio-platform",
  "vagrant-studio-project-service",
  "vagrant-studio-project-store",
+ "vagrant-studio-provider-registry",
  "vagrant-studio-vagrant-adapter",
 ]
 
@@ -4721,6 +4722,18 @@ dependencies = [
  "tokio",
  "uuid",
  "vagrant-studio-domain",
+]
+
+[[package]]
+name = "vagrant-studio-provider-registry"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-util",
+ "vagrant-studio-platform",
+ "vagrant-studio-vagrant-adapter",
 ]
 
 [[package]]

@@ -33,6 +33,7 @@ vagrant-studio-operation-engine = { path = "crates/operation-engine" }
 vagrant-studio-platform = { path = "crates/platform" }
 vagrant-studio-project-service = { path = "crates/project-service" }
 vagrant-studio-project-store = { path = "crates/project-store" }
+vagrant-studio-provider-registry = { path = "crates/provider-registry" }
 vagrant-studio-vagrant-adapter = { path = "crates/vagrant-adapter" }
 
 [workspace.lints.rust]

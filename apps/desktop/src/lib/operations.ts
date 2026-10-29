@@ -1,5 +1,11 @@
 import type { MachineState } from '@/components/status/machine-state'
-import type { LifecycleAction, LogLine, Operation, OperationStatus } from '@/types/operations'
+import type {
+  Capability,
+  LifecycleAction,
+  LogLine,
+  Operation,
+  OperationStatus,
+} from '@/types/operations'
 
 /**
  * Maps Vagrant provider states to the UI's status vocabulary. Unknown values stay unknown.
@@ -45,11 +51,18 @@ const ACTIONS_BY_STATE: Partial<Record<MachineState, readonly LifecycleAction[]>
 }
 
 /**
- * Actions that make sense for a machine in this state. When the state is
- * unknown every action is offered and Vagrant decides.
+ * Actions that make sense for a machine in this state on its provider. When
+ * the state is unknown every action is offered and Vagrant decides. Provider
+ * capabilities limit the list only when detection reported them (a non-empty
+ * list); an unknown or undetected provider isn't limited.
  */
-export function actionsFor(state: MachineState): readonly LifecycleAction[] {
-  return ACTIONS_BY_STATE[state] ?? LIFECYCLE_ACTIONS
+export function actionsFor(
+  state: MachineState,
+  capabilities: readonly Capability[] = [],
+): readonly LifecycleAction[] {
+  const actions = ACTIONS_BY_STATE[state] ?? LIFECYCLE_ACTIONS
+  if (!capabilities.length || capabilities.includes('lifecycle.suspend')) return actions
+  return actions.filter((a) => a !== 'suspend' && a !== 'resume')
 }
 
 /** The one-click action shown on a machine row, if any. */
