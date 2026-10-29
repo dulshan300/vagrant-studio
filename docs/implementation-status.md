@@ -12,7 +12,8 @@ tests; walkthrough (`docs/testing/manual-network.md`) passed on Windows (user,
 2026-10-29). Shell provisioner management and results done in code and
 automated tests (named provisioners, run all/chosen, Up/Reload with
 `--provision`, per-machine results); walkthrough
-(`docs/testing/manual-provisioning.md`) not yet run. Next: that walkthrough.
+(`docs/testing/manual-provisioning.md`) passed on Windows (user, 2026-10-29).
+Remaining: VirtualBox verification on Windows 11 and Ubuntu (needs the user).
 
 ## Completed phases
 - **Phase 0 — Inspection and planning** (2026-10-28): architecture, roadmap,
@@ -45,7 +46,7 @@ automated tests (named provisioners, run all/chosen, Up/Reload with
 | Box management: list with machine usage, update check, add (catalog / URL / file), update, remove with typed confirmation and token; box write lock | Done; Windows walkthrough accepted |
 | `crates/provider-registry` (capabilities, docker adapter, VirtualBox/Vagrant compatibility, Hyper-V coexistence) | Done (automated + real-host detection on Windows); Providers page accepted by the user 2026-10-29 |
 | Networking: public networks in the visual subset, host-port conflict detection | Done in code; automated tests pass; 14 generated files pass `vagrant validate`; walkthrough (`docs/testing/manual-network.md`) **passed** on Windows (user, 2026-10-29, "test ok", no itemized step results) |
-| Shell provisioner management and results: named provisioners in the visual subset, Provision dialog (all / chosen names via `--provision-with`; Start/Restart with `--provision`), backend name check, results parsed from output and stored per machine (migration 0003), shown on machine rows and in the operation drawer | Done in code; automated tests pass; 14 generated files pass `vagrant validate`; walkthrough (`docs/testing/manual-provisioning.md`) **not yet run** |
+| Shell provisioner management and results: named provisioners in the visual subset, Provision dialog (all / chosen names via `--provision-with`; Start/Restart with `--provision`), backend name check, results parsed from output and stored per machine (migration 0003), shown on machine rows and in the operation drawer | Done in code; automated tests pass; 14 generated files pass `vagrant validate`; walkthrough (`docs/testing/manual-provisioning.md`) **passed** on Windows with VMware Desktop (user, 2026-10-29, "all pass", no itemized step results) |
 | VirtualBox verification on Windows 11 and Ubuntu | Not started (needs the user) |
 
 | Check | Result |
@@ -191,7 +192,8 @@ Vagrant prints guest output to stdout; failure summaries of human-output command
 include the last output lines.
 
 ## Next recommended task
-1. Phase 6: user walkthrough of `docs/testing/manual-provisioning.md` on Windows.
+1. Phase 6: VirtualBox verification on Windows 11 (and Ubuntu), recorded in
+   `docs/provider-capabilities.md`; then Phase 6 is complete.
 2. Push and confirm the Windows CI run for Phases 3–6.
 3. Optional: VirtualBox lifecycle run of `docs/testing/manual-lifecycle.md` on Windows.
 4. Before release: install the CI NSIS installer by hand on Windows 11.
