@@ -71,7 +71,7 @@ Acceptance: app launches on target OSes; UI navigable; CI runs tests; no new war
 
 ## Phase 6 — Boxes, providers, networking, provisioning
 - [x] Box list/add/remove/update/update check with in-use explanation (machine index), box write lock, typed confirmation + token for remove; manual plan `docs/testing/manual-boxes.md` (Windows walkthrough accepted by the user 2026-10-29)
-- [x] `crates/provider-registry`: VirtualBox, VMware Desktop and docker adapters, capability flags and support level, prerequisite findings (VirtualBox/Vagrant version table, Windows hypervisor, `vboxdrv`, Docker daemon); Suspend/Resume hidden for providers without `lifecycle.suspend`. Automated tests pass on Linux and as Windows binaries; real-host detection checked on Windows. Providers page not yet reviewed by the user
+- [x] `crates/provider-registry`: VirtualBox, VMware Desktop and docker adapters, capability flags and support level, prerequisite findings (VirtualBox/Vagrant version table, Windows hypervisor, `vboxdrv`, Docker daemon); Suspend/Resume hidden for providers without `lifecycle.suspend`. Automated tests pass on Linux and as Windows binaries; real-host detection checked on Windows. Providers page accepted by the user on Windows 2026-10-29
 - [ ] Forwarded ports (+ host-port conflict detection), private/public networks, synced folders
 - [ ] Shell provisioner management and results
 - [ ] VirtualBox verification on Windows 11 and Ubuntu recorded in provider-capabilities.md

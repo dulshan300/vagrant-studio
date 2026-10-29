@@ -6,7 +6,7 @@ _Last updated: 2026-10-29_
 **Phase 6 — Boxes, providers, networking, provisioning: in progress** (branch
 `phase-6-boxes-providers`). Done: box management (automated tests pass; manual
 walkthrough on Windows accepted by the user 2026-10-29); `crates/provider-registry` (automated
-tests pass; real detection checked on Windows; Providers page awaits a look from the user).
+tests pass; real detection checked on Windows; Providers page accepted by the user 2026-10-29).
 Next: networking.
 
 ## Completed phases
@@ -38,7 +38,7 @@ Next: networking.
 | Task | State |
 |---|---|
 | Box management: list with machine usage, update check, add (catalog / URL / file), update, remove with typed confirmation and token; box write lock | Done; Windows walkthrough accepted |
-| `crates/provider-registry` (capabilities, docker adapter, VirtualBox/Vagrant compatibility, Hyper-V coexistence) | Done (automated + real-host detection on Windows); Providers page not yet reviewed by the user |
+| `crates/provider-registry` (capabilities, docker adapter, VirtualBox/Vagrant compatibility, Hyper-V coexistence) | Done (automated + real-host detection on Windows); Providers page accepted by the user 2026-10-29 |
 | Networking: public networks in the visual subset, host-port conflict detection | Not started |
 | Shell provisioner management and results | Not started |
 | VirtualBox verification on Windows 11 and Ubuntu | Not started (needs the user) |
@@ -178,11 +178,9 @@ Vagrant prints guest output to stdout; failure summaries of human-output command
 include the last output lines.
 
 ## Next recommended task
-1. Have the user look at the Providers page on Windows (support level,
-   capabilities, Docker card, Hyper-V warning on VirtualBox).
-2. Phase 6 continued: networking (public networks, port conflicts), then
+1. Phase 6 continued: networking (public networks, port conflicts), then
    provisioning.
-3. Push and confirm the Windows CI run for Phases 3–6.
-4. Optional: VirtualBox lifecycle run of `docs/testing/manual-lifecycle.md` on Windows.
-5. Before release: install the CI NSIS installer by hand on Windows 11.
-6. Later: re-enable the Ubuntu/Fedora CI jobs.
+2. Push and confirm the Windows CI run for Phases 3–6.
+3. Optional: VirtualBox lifecycle run of `docs/testing/manual-lifecycle.md` on Windows.
+4. Before release: install the CI NSIS installer by hand on Windows 11.
+5. Later: re-enable the Ubuntu/Fedora CI jobs.
