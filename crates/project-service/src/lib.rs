@@ -13,6 +13,7 @@
 mod inspect;
 pub mod templates;
 mod vagrantfile;
+mod workspace;
 
 use std::collections::HashSet;
 use std::io::Write as _;
@@ -36,6 +37,7 @@ pub use vagrantfile::{
     KEEP_BACKUPS, MAX_VAGRANTFILE_BYTES, SaveVagrantfileOutcome, SaveVagrantfileRequest,
     VagrantfileBackup, VagrantfileDocument,
 };
+pub use workspace::TaskChanges;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ServiceError {

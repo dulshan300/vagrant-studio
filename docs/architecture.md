@@ -168,6 +168,7 @@ is always loaded from the backend, and events only update live views.
 | Project/environment metadata | SQLite (local) and optional `.vagrant-studio/project.json` (portable) | — |
 | Operation logs | Log files under the app data dir | SQLite holds an index row per operation |
 | Provisioner results | The output of `up`/`reload`/`provision` | `provisioning_results` rows per machine and operation (status and the last 40 output lines per provisioner) |
+| Project notes and tasks | SQLite (local only; not in `project.json`) | — |
 
 Provisioner results are read from Vagrant's human output when the command
 ends (`vagrant_adapter::provision`), because Vagrant has no machine-readable

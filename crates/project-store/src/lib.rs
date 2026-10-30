@@ -9,6 +9,7 @@ mod operations;
 mod projects;
 mod provisioning;
 mod settings;
+mod workspace;
 
 use std::path::Path;
 use std::str::FromStr;
@@ -21,6 +22,7 @@ use time::OffsetDateTime;
 pub use operations::EnvironmentStatusRecord;
 pub use projects::{ProjectFilter, ProjectUpdate};
 pub use provisioning::ProvisioningRecord;
+pub use workspace::TaskUpdate;
 
 static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("../../migrations");
 

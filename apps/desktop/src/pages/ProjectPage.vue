@@ -24,6 +24,8 @@ import EditProjectDialog from '@/components/projects/EditProjectDialog.vue'
 import EnvironmentPanel from '@/components/projects/EnvironmentPanel.vue'
 import DeleteProjectDialog from '@/components/projects/DeleteProjectDialog.vue'
 import PortableMetadataDialog from '@/components/projects/PortableMetadataDialog.vue'
+import ProjectNotes from '@/components/projects/ProjectNotes.vue'
+import ProjectTasks from '@/components/projects/ProjectTasks.vue'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import {
@@ -261,6 +263,11 @@ async function removeEnvironment(id: string, name: string) {
         </EmptyState>
       </Card>
     </section>
+
+    <div class="mt-6 grid items-start gap-4 lg:grid-cols-2">
+      <ProjectTasks :project-id="project.id" />
+      <ProjectNotes :project-id="project.id" />
+    </div>
 
     <EditProjectDialog v-model:open="showEdit" :project="project" @saved="saved" />
     <DeleteProjectDialog v-model:open="showDelete" :project="project" />

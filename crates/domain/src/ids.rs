@@ -52,3 +52,11 @@ id_type!(
     /// Stable identifier of a recorded operation.
     OperationId
 );
+id_type!(
+    /// Stable identifier of a project note.
+    NoteId
+);
+id_type!(
+    /// Stable identifier of a project task.
+    TaskId
+);

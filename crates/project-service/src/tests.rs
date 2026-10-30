@@ -896,3 +896,85 @@ async fn finds_the_environment_rooted_in_a_folder() {
     assert_eq!(found[1], None);
     assert_eq!(found[2], None, "the parent folder is not the environment");
 }
+
+#[tokio::test]
+async fn notes_and_tasks_are_validated_and_stay_with_their_project() {
+    let h = Harness::new().await;
+    let a = h
+        .service
+        .create(create_req(h.path(""), None))
+        .await
+        .unwrap()
+        .project
+        .id;
+    let mut other = create_req(h.path(""), None);
+    other.name = "Other".into();
+    let b = h.service.create(other).await.unwrap().project.id;
+
+    let note = h
+        .service
+        .create_note(a, "  Logins ", "db: postgres\n\n")
+        .await
+        .unwrap();
+    assert_eq!(
+        (note.title.as_str(), note.body.as_str()),
+        ("Logins", "db: postgres")
+    );
+    assert!(matches!(
+        h.service.create_note(a, " ", "").await,
+        Err(ServiceError::Validation(e)) if e.field == "title"
+    ));
+    // Another project can't change or delete it.
+    assert!(matches!(
+        h.service.update_note(b, note.id, "x", "").await,
+        Err(ServiceError::NotFound(_))
+    ));
+    assert!(h.service.delete_note(b, note.id).await.is_err());
+    h.service.delete_note(a, note.id).await.unwrap();
+    assert!(h.service.notes(a).await.unwrap().is_empty());
+
+    let first = h.service.create_task(a, "Install box").await.unwrap();
+    let second = h.service.create_task(a, "Open port").await.unwrap();
+    let done = h
+        .service
+        .update_task(
+            a,
+            first.id,
+            TaskChanges {
+                done: Some(true),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+    assert!(done.done);
+    assert!(
+        h.service
+            .update_task(
+                a,
+                first.id,
+                TaskChanges {
+                    title: Some("a\nb".into()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .is_err()
+    );
+    assert!(
+        h.service
+            .update_task(b, first.id, TaskChanges::default())
+            .await
+            .is_err()
+    );
+    let order: Vec<_> = h
+        .service
+        .reorder_tasks(a, &[second.id, first.id])
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|t| t.title)
+        .collect();
+    assert_eq!(order, ["Open port", "Install box"]);
+    assert!(h.service.create_task(ProjectId::new(), "t").await.is_err());
+}

@@ -93,6 +93,15 @@ pub fn run() {
             commands::terminal::open_ssh_terminal,
             commands::editor::list_editors,
             commands::editor::open_in_editor,
+            commands::workspace::list_project_notes,
+            commands::workspace::create_project_note,
+            commands::workspace::update_project_note,
+            commands::workspace::delete_project_note,
+            commands::workspace::list_project_tasks,
+            commands::workspace::create_project_task,
+            commands::workspace::update_project_task,
+            commands::workspace::delete_project_task,
+            commands::workspace::reorder_project_tasks,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Vagrant Studio");
