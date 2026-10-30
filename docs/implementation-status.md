@@ -3,8 +3,11 @@
 _Last updated: 2026-10-30_
 
 ## Current phase
-**Phase 7 — Developer workspace: in progress** (branch
-`phase-7-developer-workspace`). Phase 6 is merged into `main`; Windows CI
+**Phase 7 — Developer workspace: complete 2026-10-30 on Windows** (branch
+`phase-7-developer-workspace`, not yet merged into `main`). Walkthroughs
+`manual-terminal.md`, `manual-logs.md` and `manual-ports.md` passed on
+Windows (user, 2026-10-30, "all pass", no itemized step results). Phase 8
+(additional providers) is next. Phase 6 is merged into `main`; Windows CI
 passed (run 40858003787, `2317b88`). SSH in an external terminal: done in
 code and automated tests (terminal button on running machines with the `ssh`
 capability; Windows Terminal, else a console window; Linux terminal list
@@ -46,7 +49,7 @@ registered Vagrantfile through the config model; shared ports count for
 every machine; addresses overlap when equal or when either is unset or a
 wildcard); shown on environment cards and next to forwarded ports in the
 Vagrantfile editor (unsaved edits included); walkthrough
-`docs/testing/manual-ports.md` not yet run. Project shortcuts: already
+`docs/testing/manual-ports.md` passed on Windows (user, 2026-10-30). Project shortcuts: already
 covered by existing features (user, 2026-10-30). Log navigation: done in code
 and automated tests (user's choice, 2026-10-30: search and filter, history
 per project/machine, log files). Operations page scoped by project,
@@ -59,7 +62,7 @@ matches and Enter/Shift+Enter stepping, All / Problems / stderr filter,
 next-problem jump (stderr plus error/warning wording, since Vagrant prints
 guest stderr on stdout), copy, and "show log file" in the file manager;
 "Logs folder" on the Operations page. Walkthrough `docs/testing/manual-logs.md`
-not yet run. Embedded terminal: done in code and automated tests (ADR-0009).
+passed on Windows (user, 2026-10-30). Embedded terminal: done in code and automated tests (ADR-0009).
 New crate `crates/terminal` (portable-pty 0.9: ConPTY on Windows, Unix PTY on
 Linux; tests with real pseudo-terminals pass on Linux and as a Windows binary,
 including closing a running program). `vagrant ssh` opens in a terminal panel
@@ -68,10 +71,18 @@ resizable, survives navigation, Ctrl+` hides it). Settings → "SSH opens in"
 keeps the external window as an option. Found while testing: ConPTY asks for
 the cursor position at start and waits for the reply, so early input is
 queued until the session id is known. Walkthrough
-`docs/testing/manual-terminal.md` not yet run (includes checking that no
-`ruby.exe`/`ssh.exe` survives a closed tab).
+`docs/testing/manual-terminal.md` passed on Windows (user, 2026-10-30),
+including no `vagrant.exe`/`ruby.exe`/`ssh.exe` left after closing a tab or
+quitting.
 
 ## Completed phases
+- **Phase 7 — Developer workspace** (2026-10-30, Windows): SSH in an external
+  window and in the embedded terminal panel (`crates/terminal`, ADR-0009),
+  open in editor, notes and tasks, Git status and version-control panel,
+  cross-project port warnings, log navigation (migration 0004). Automated
+  tests pass on Linux and as Windows binaries; every walkthrough passed on
+  Windows (user, no itemized step results). Linux terminal launchers remain
+  untested.
 - **Phase 0 — Inspection and planning** (2026-10-28): architecture, roadmap,
   provider capabilities, ADRs 0001–0006, risks (architecture.md §11).
 - **Phase 1 — Desktop foundation** (2026-10-28, Windows): green Windows CI with NSIS
@@ -272,9 +283,7 @@ Vagrant prints guest output to stdout; failure summaries of human-output command
 include the last output lines.
 
 ## Next recommended task
-1. Run `docs/testing/manual-terminal.md`, `docs/testing/manual-logs.md` and
-   `docs/testing/manual-ports.md` on Windows; Phase 7 is complete in code once
-   they pass.
-2. Phase 8: choose the next provider.
+1. Merge `phase-7-developer-workspace` into `main` and confirm Windows CI.
+2. Phase 8: choose the next provider (libvirt on Fedora is the likely first).
 3. Before release: install the CI NSIS installer by hand on Windows 11.
 4. Later: re-enable the Ubuntu/Fedora CI jobs.
