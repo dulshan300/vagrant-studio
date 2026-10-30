@@ -3,13 +3,14 @@
 _Last updated: 2026-10-30_
 
 ## Current phase
-**Phase 8 — Additional providers and advanced capabilities: done in code,
-export not yet run through the app** (branch `phase-8-providers`, 2026-10-30).
-`docs/testing/manual-snapshots.md`: the user reported "all pass" (2026-10-30, no
-itemized results), but the app's operation logs show only save, restore and
-delete of `base` on VMware Desktop, all succeeded. They show no export, no
-second snapshot and no duplicate-name attempt, so those steps stay unconfirmed
-until repeated. New:
+**Phase 8 — Additional providers and advanced capabilities: complete
+2026-10-30 on Windows with VMware Desktop** (branch `phase-8-providers`, not yet
+merged into `main`). `docs/testing/manual-snapshots.md`: the user reported "all
+pass" (no itemized results). The app's operation logs show save, restore and
+delete of a snapshot, export of `db` to `E:\VM_Backup\db_test.box` and adding
+that file as a box, all succeeded. They show no second snapshot and no
+duplicate-name attempt; the refused overwrite is checked by tests and Vagrant
+refuses it too. Through the app, VirtualBox was not exercised. New:
 libvirt provider (Linux only: adapter, prerequisite checks, templates, visual
 CPU and memory settings; never run on a real libvirt host, so it can show only
 as Detected), snapshots (`snapshot` capability: list, save, typed confirmation
@@ -143,7 +144,8 @@ quitting.
 | Real snapshots, CLI, VirtualBox and VMware Desktop | Pass (verification log) |
 | Real export, CLI, VirtualBox and VMware Desktop | Pass (verification log) |
 | Snapshots through the app, VMware Desktop | **Pass**: save, restore, delete of `base` on `web` (operation logs, 2026-10-30). The save took about 4.5 minutes: VMware writes the 2 GB of memory in the background at about 8 MB/s |
-| Export, duplicate name and VirtualBox through the app | **No record**: user reported "all pass", operation logs show none of these |
+| Export through the app, VMware Desktop | **Pass**: `package` of stopped `db`, then `box add` of the file succeeded (operation logs, 2026-10-30). Booting a machine from that box not logged |
+| Duplicate name and VirtualBox through the app | **No record**: user reported "all pass", operation logs show neither |
 | libvirt on a real host | **Not run** |
 
 ## Phase 6 results (2026-10-29)
@@ -314,8 +316,7 @@ Vagrant prints guest output to stdout; failure summaries of human-output command
 include the last output lines.
 
 ## Next recommended task
-1. Repeat the export steps of `docs/testing/manual-snapshots.md` on Windows; no export is in the logs.
-2. Merge `phase-8-providers` (includes Phase 7) into `main` and confirm Windows CI.
-3. Phase 9: include libvirt on Fedora in the test matrix.
-4. Before release: install the CI NSIS installer by hand on Windows 11.
-5. Later: re-enable the Ubuntu/Fedora CI jobs.
+1. Merge `phase-8-providers` (includes Phase 7) into `main` and confirm Windows CI.
+2. Phase 9: include libvirt on Fedora in the test matrix.
+3. Before release: install the CI NSIS installer by hand on Windows 11.
+4. Later: re-enable the Ubuntu/Fedora CI jobs.
