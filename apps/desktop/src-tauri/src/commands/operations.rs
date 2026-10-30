@@ -2,13 +2,14 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use tauri::{AppHandle, Emitter, Runtime, State};
-use vagrant_studio_domain::{EnvironmentId, Operation, OperationId, OperationType};
+use tauri_plugin_opener::OpenerExt;
+use vagrant_studio_domain::{EnvironmentId, Operation, OperationId, OperationType, ProjectId};
 use vagrant_studio_operation_engine::lifecycle::{
     check_provisioning, confirmation_phrase, operation_type, order_targets,
 };
 use vagrant_studio_operation_engine::{
     Confirmation, ConfirmationProof, EnvironmentStatus, EventSink, LogLine, OperationEngine,
-    OperationEvent, OperationRequest,
+    OperationEvent, OperationFilter, OperationRequest,
 };
 use vagrant_studio_platform::SystemPlatform;
 use vagrant_studio_project_service::ProjectService;
@@ -257,13 +258,22 @@ pub async fn list_environment_statuses(
     Ok(engine.all_environment_statuses().await?)
 }
 
+/// Newest first. Every filter is optional; `machine` matches operations that
+/// named that machine.
 #[tauri::command]
 pub async fn list_operations(
     engine: State<'_, OperationEngine>,
+    project_id: Option<ProjectId>,
     environment_id: Option<EnvironmentId>,
+    machine: Option<String>,
     limit: Option<i64>,
 ) -> CommandResult<Vec<Operation>> {
-    Ok(engine.list(environment_id, limit.unwrap_or(100)).await?)
+    let filter = OperationFilter {
+        project_id,
+        environment_id,
+        machine,
+    };
+    Ok(engine.list(&filter, limit.unwrap_or(100)).await?)
 }
 
 #[tauri::command]
@@ -284,6 +294,43 @@ pub async fn read_operation_log(
     id: OperationId,
 ) -> CommandResult<Vec<LogLine>> {
     Ok(engine.log(id, LOG_LINES).await?)
+}
+
+/// Shows the operation's log file in the system file manager. The path comes
+/// from the database, never from the frontend.
+#[tauri::command]
+pub async fn reveal_operation_log<R: Runtime>(
+    app: AppHandle<R>,
+    engine: State<'_, OperationEngine>,
+    id: OperationId,
+) -> CommandResult<()> {
+    let path = engine
+        .get(id)
+        .await?
+        .and_then(|op| op.log_path)
+        .map(PathBuf::from)
+        .filter(|p| p.is_file())
+        .ok_or_else(|| CommandError::unavailable("This operation has no log file."))?;
+    // Revealing waits on the file manager (D-Bus on Linux), so keep it off
+    // the async workers.
+    tauri::async_runtime::spawn_blocking(move || app.opener().reveal_item_in_dir(path))
+        .await
+        .map_err(|e| CommandError::internal(e.to_string()))?
+        .map_err(|e| CommandError::internal(format!("Could not show the log file: {e}")))
+}
+
+/// Opens the folder holding every operation log in the system file manager.
+#[tauri::command]
+pub async fn open_operation_logs_folder<R: Runtime>(
+    app: AppHandle<R>,
+    engine: State<'_, OperationEngine>,
+) -> CommandResult<()> {
+    let folder = engine.logs_folder();
+    std::fs::create_dir_all(folder)
+        .map_err(|e| CommandError::internal(format!("Could not create the logs folder: {e}")))?;
+    app.opener()
+        .open_path(folder.display().to_string(), None::<&str>)
+        .map_err(|e| CommandError::internal(format!("Could not open the logs folder: {e}")))
 }
 
 #[tauri::command]

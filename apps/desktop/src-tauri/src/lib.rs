@@ -85,6 +85,8 @@ pub fn run() {
             commands::operations::get_environment_status,
             commands::operations::list_environment_statuses,
             commands::operations::list_operations,
+            commands::operations::reveal_operation_log,
+            commands::operations::open_operation_logs_folder,
             commands::operations::get_operation,
             commands::operations::read_operation_log,
             commands::operations::cancel_operation,

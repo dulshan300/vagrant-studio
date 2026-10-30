@@ -54,17 +54,32 @@ export const operationsApi = {
   environmentStatus: (environmentId: string) =>
     call<EnvironmentStatus | null>('get_environment_status', { environmentId }),
   environmentStatuses: () => call<EnvironmentStatus[]>('list_environment_statuses'),
-  list: (environmentId: string | null = null, limit = 200) =>
-    call<Operation[]>('list_operations', { environmentId, limit }),
+  /** Newest first; `machine` matches operations that named that machine. */
+  list: (filter: OperationFilter = {}, limit = 200) =>
+    call<Operation[]>('list_operations', {
+      projectId: filter.projectId ?? null,
+      environmentId: filter.environmentId ?? null,
+      machine: filter.machine ?? null,
+      limit,
+    }),
   get: (id: string) => call<Operation>('get_operation', { id }),
   log: (id: string) => call<LogLine[]>('read_operation_log', { id }),
   cancel: (id: string) => call<boolean>('cancel_operation', { id }),
+  /** Shows the operation's log file in the system file manager. */
+  revealLog: (id: string) => call<void>('reveal_operation_log', { id }),
+  openLogsFolder: () => call<void>('open_operation_logs_folder'),
   provisioners: (environmentId: string) =>
     call<ProvisionerList>('list_provisioners', { environmentId }),
   operationProvisioning: (operationId: string) =>
     call<MachineProvisioning[]>('get_operation_provisioning', { operationId }),
   latestProvisioning: (environmentId: string) =>
     call<MachineProvisioning[]>('get_latest_provisioning', { environmentId }),
+}
+
+export interface OperationFilter {
+  projectId?: string | null
+  environmentId?: string | null
+  machine?: string | null
 }
 
 export async function onOperationEvent(

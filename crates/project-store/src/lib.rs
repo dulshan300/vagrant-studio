@@ -19,7 +19,7 @@ use sqlx::SqlitePool;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use time::OffsetDateTime;
 
-pub use operations::EnvironmentStatusRecord;
+pub use operations::{EnvironmentStatusRecord, OperationFilter};
 pub use projects::{ProjectFilter, ProjectUpdate};
 pub use provisioning::ProvisioningRecord;
 pub use workspace::TaskUpdate;
@@ -129,6 +129,7 @@ mod tests {
                 "environment_status",
                 "environments",
                 "machine_configs",
+                "operation_machines",
                 "operations",
                 "port_mappings",
                 "project_notes",
@@ -141,7 +142,7 @@ mod tests {
                 "tags",
             ]
         );
-        assert_eq!(Store::schema_version(), 3);
+        assert_eq!(Store::schema_version(), 4);
     }
 
     #[tokio::test]
@@ -156,17 +157,15 @@ mod tests {
         assert!(err.to_string().contains("FOREIGN KEY"), "{err}");
     }
 
-    /// A database created by the v1 schema keeps its operation rows when
-    /// upgraded to the current schema.
-    #[tokio::test]
-    async fn upgrade_from_v1_preserves_operations() {
-        let dir = tempfile::tempdir().unwrap();
-        let v1 = dir.path().join("migrations-v1");
-        std::fs::create_dir(&v1).unwrap();
+    /// A database file with only the given migrations applied.
+    async fn old_database(dir: &Path, migrations: &[&str]) -> (std::path::PathBuf, SqlitePool) {
+        let old = dir.join("migrations-old");
+        std::fs::create_dir(&old).unwrap();
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../migrations");
-        std::fs::copy(root.join("0001_initial.sql"), v1.join("0001_initial.sql")).unwrap();
-
-        let db = dir.path().join("old.db");
+        for file in migrations {
+            std::fs::copy(root.join(file), old.join(file)).unwrap();
+        }
+        let db = dir.join("old.db");
         let options = SqliteConnectOptions::new()
             .filename(&db)
             .create_if_missing(true)
@@ -176,12 +175,21 @@ mod tests {
             .connect_with(options)
             .await
             .unwrap();
-        sqlx::migrate::Migrator::new(v1.as_path())
+        sqlx::migrate::Migrator::new(old.as_path())
             .await
             .unwrap()
             .run(&pool)
             .await
             .unwrap();
+        (db, pool)
+    }
+
+    /// A database created by the v1 schema keeps its operation rows when
+    /// upgraded to the current schema.
+    #[tokio::test]
+    async fn upgrade_from_v1_preserves_operations() {
+        let dir = tempfile::tempdir().unwrap();
+        let (db, pool) = old_database(dir.path(), &["0001_initial.sql"]).await;
         sqlx::query("INSERT INTO projects (id, name, slug, root_path, created_at, updated_at) VALUES ('p', 'P', 'p', '/p', 't', 't')")
             .execute(&pool).await.unwrap();
         sqlx::query("INSERT INTO environments (id, project_id, name, root_path, created_at, updated_at) VALUES ('e', 'p', 'dev', '/p', 't', 't')")
@@ -209,6 +217,38 @@ mod tests {
         );
     }
 
+    /// Operations on one machine recorded before v4 can be found by machine.
+    #[tokio::test]
+    async fn upgrade_to_v4_records_single_machine_targets() {
+        let dir = tempfile::tempdir().unwrap();
+        let (db, pool) = old_database(
+            dir.path(),
+            &[
+                "0001_initial.sql",
+                "0002_operations_history.sql",
+                "0003_provisioning_results.sql",
+            ],
+        )
+        .await;
+        for (id, machine) in [("a", Some("web")), ("b", None)] {
+            sqlx::query("INSERT INTO operations (id, machine_name, operation_type, status, created_at) VALUES (?, ?, 'up', 'succeeded', '2026-01-01T00:00:00Z')")
+                .bind(id)
+                .bind(machine)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+        pool.close().await;
+
+        let store = Store::open(&db).await.unwrap();
+        let rows: Vec<(String, String)> =
+            sqlx::query_as("SELECT operation_id, machine_name FROM operation_machines")
+                .fetch_all(&store.pool)
+                .await
+                .unwrap();
+        assert_eq!(rows, [("a".to_owned(), "web".to_owned())]);
+    }
+
     #[tokio::test]
     async fn reopening_a_file_database_is_idempotent() {
         let dir = tempfile::tempdir().unwrap();
@@ -221,6 +261,6 @@ mod tests {
             .fetch_one(&store.pool)
             .await
             .unwrap();
-        assert_eq!(applied.0, 3);
+        assert_eq!(applied.0, 4);
     }
 }

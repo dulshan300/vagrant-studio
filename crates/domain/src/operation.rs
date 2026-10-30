@@ -141,7 +141,11 @@ pub struct Operation {
 pub struct NewOperation {
     pub project_id: Option<ProjectId>,
     pub environment_id: Option<EnvironmentId>,
+    /// Set when the operation names exactly one machine.
     pub machine_name: Option<String>,
+    /// Every machine the operation names; empty for environment-wide
+    /// commands such as `status` without a machine.
+    pub machines: Vec<String>,
     pub target_label: String,
     pub operation_type: OperationType,
     pub command_line: String,

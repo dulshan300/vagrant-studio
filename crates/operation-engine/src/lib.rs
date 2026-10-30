@@ -29,6 +29,7 @@ use tokio_util::sync::CancellationToken;
 use vagrant_studio_domain::{
     EnvironmentId, NewOperation, Operation, OperationId, OperationStatus, OperationType, ProjectId,
 };
+pub use vagrant_studio_project_store::OperationFilter;
 use vagrant_studio_project_store::{EnvironmentStatusRecord, Store, StoreError};
 use vagrant_studio_vagrant_adapter::machine_readable::{self, MachineStatus};
 use vagrant_studio_vagrant_adapter::{
@@ -251,17 +252,22 @@ impl OperationEngine {
         Ok(self.inner.store.get_operation(id).await?)
     }
 
-    /// Newest first, optionally for one environment.
+    /// Newest first, narrowed by `filter`.
     pub async fn list(
         &self,
-        environment_id: Option<EnvironmentId>,
+        filter: &OperationFilter,
         limit: i64,
     ) -> Result<Vec<Operation>, EngineError> {
         Ok(self
             .inner
             .store
-            .list_operations(environment_id, limit.clamp(1, 500))
+            .list_operations(filter, limit.clamp(1, 500))
             .await?)
+    }
+
+    /// Folder holding the operation logs (it may not exist yet).
+    pub fn logs_folder(&self) -> &Path {
+        &self.inner.logs_dir
     }
 
     /// The last `limit` lines of an operation's log (empty if it has none yet).
@@ -443,6 +449,7 @@ impl OperationEngine {
                     project_id: req.project_id,
                     environment_id: req.environment_id,
                     machine_name: req.machine_name.clone(),
+                    machines: named_machines(&req.command),
                     target_label: req.target_label.clone(),
                     operation_type: req.operation_type.clone(),
                     command_line: command_line(&req.command),
@@ -872,6 +879,19 @@ fn failure_summary(
         );
     }
     text.chars().take(1500).collect()
+}
+
+/// The machines a command names, recorded so history can be shown per machine.
+fn named_machines(command: &VagrantCommand) -> Vec<String> {
+    match command {
+        VagrantCommand::Status { machine } => {
+            machine.iter().map(|m| m.as_str().to_owned()).collect()
+        }
+        VagrantCommand::Lifecycle { machines, .. } => {
+            machines.iter().map(|m| m.as_str().to_owned()).collect()
+        }
+        _ => Vec::new(),
+    }
 }
 
 /// Folder for operation logs inside the app data folder.

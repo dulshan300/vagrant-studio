@@ -3,7 +3,7 @@
 
 use std::path::Path;
 
-use vagrant_studio_project_store::{ProjectFilter, Store, TaskUpdate};
+use vagrant_studio_project_store::{OperationFilter, ProjectFilter, Store, TaskUpdate};
 
 #[tokio::test]
 #[ignore = "needs a copy of a real database in VS_DB"]
@@ -30,7 +30,16 @@ async fn replays_app_queries() {
             );
             println!(
                 "ops {:?}",
-                store.list_operations(Some(e.id), 50).await.map(|o| o.len())
+                store
+                    .list_operations(
+                        &OperationFilter {
+                            environment_id: Some(e.id),
+                            ..Default::default()
+                        },
+                        50,
+                    )
+                    .await
+                    .map(|o| o.len())
             );
         }
         println!("notes {:?}", store.list_notes(p.id).await.map(|n| n.len()));
@@ -57,7 +66,10 @@ async fn replays_app_queries() {
     println!("tags {:?}", store.list_tags().await.map(|t| t.len()));
     println!(
         "all ops {:?}",
-        store.list_operations(None, 200).await.map(|o| o.len())
+        store
+            .list_operations(&OperationFilter::default(), 200)
+            .await
+            .map(|o| o.len())
     );
     println!(
         "statuses {:?}",

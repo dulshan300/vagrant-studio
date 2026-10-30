@@ -6,6 +6,7 @@ import {
   Ellipsis,
   FileCheck,
   FileCode,
+  History,
   LoaderCircle,
   RefreshCw,
   ScrollText,
@@ -157,6 +158,16 @@ async function run(action: (id: string) => Promise<unknown>) {
           </DropdownMenuTrigger>
           <DropdownMenuContent>
             <DropdownMenuItem @select="openInEditor"><Code /> Open in editor</DropdownMenuItem>
+            <DropdownMenuItem
+              @select="
+                router.push({
+                  path: '/operations',
+                  query: { project: environment.projectId, environment: environment.id },
+                })
+              "
+            >
+              <History /> Operation history
+            </DropdownMenuItem>
             <DropdownMenuSeparator class="my-1 h-px bg-border" />
             <DropdownMenuItem destructive @select="$emit('remove')">
               <Trash2 /> Remove environment…

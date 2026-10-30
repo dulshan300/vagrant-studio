@@ -394,6 +394,7 @@ async fn recovery_marks_leftover_operations_interrupted() {
                 project_id: None,
                 environment_id: Some(h.env),
                 machine_name: None,
+                machines: vec![],
                 target_label: "x".into(),
                 operation_type: OperationType::Up,
                 command_line: "vagrant up".into(),
@@ -447,6 +448,15 @@ async fn lifecycle_commands_name_machines_and_refresh_status_afterwards() {
         h.runner.calls(),
         ["up --no-tty web db", "status --machine-readable"]
     );
+    for machine in ["web", "db"] {
+        let filter = OperationFilter {
+            environment_id: Some(h.env),
+            machine: Some(machine.into()),
+            ..Default::default()
+        };
+        let found = h.engine.list(&filter, 10).await.unwrap();
+        assert_eq!(found.iter().map(|o| o.id).collect::<Vec<_>>(), [op.id]);
+    }
 
     let status = h.engine.environment_status(h.env).await.unwrap().unwrap();
     assert_eq!(status.operation_id, Some(op.id));
@@ -603,7 +613,14 @@ async fn duplicate_requests_are_refused_as_conflicts() {
         .unwrap();
     gate.add_permits(2);
     eventually(|| !h.engine.is_running(first.id)).await;
-    assert_eq!(h.store.list_operations(None, 10).await.unwrap().len(), 2);
+    assert_eq!(
+        h.store
+            .list_operations(&Default::default(), 10)
+            .await
+            .unwrap()
+            .len(),
+        2
+    );
 }
 
 #[tokio::test]

@@ -1,6 +1,6 @@
 # Implementation Status
 
-_Last updated: 2026-10-29_
+_Last updated: 2026-10-30_
 
 ## Current phase
 **Phase 7 — Developer workspace: in progress** (branch
@@ -46,7 +46,20 @@ registered Vagrantfile through the config model; shared ports count for
 every machine; addresses overlap when equal or when either is unset or a
 wildcard); shown on environment cards and next to forwarded ports in the
 Vagrantfile editor (unsaved edits included); walkthrough
-`docs/testing/manual-ports.md` not yet run.
+`docs/testing/manual-ports.md` not yet run. Project shortcuts: already
+covered by existing features (user, 2026-10-30). Log navigation: done in code
+and automated tests (user's choice, 2026-10-30: search and filter, history
+per project/machine, log files). Operations page scoped by project,
+environment and machine through the URL (`?project=…&environment=…&machine=…`),
+linked from the project and environment menus and a history icon on machine
+rows; the backend filters (migration 0004 records the machines each
+operation named; earlier single-machine operations are backfilled,
+multi-machine ones can't be). Output drawer: search with highlighted
+matches and Enter/Shift+Enter stepping, All / Problems / stderr filter,
+next-problem jump (stderr plus error/warning wording, since Vagrant prints
+guest stderr on stdout), copy, and "show log file" in the file manager;
+"Logs folder" on the Operations page. Walkthrough `docs/testing/manual-logs.md`
+not yet run.
 
 ## Completed phases
 - **Phase 0 — Inspection and planning** (2026-10-28): architecture, roadmap,
@@ -243,8 +256,8 @@ Vagrant prints guest output to stdout; failure summaries of human-output command
 include the last output lines.
 
 ## Next recommended task
-1. Run `docs/testing/manual-ports.md` on Windows.
-2. Phase 7: project shortcuts, log navigation.
-3. Phase 7: embedded PTY terminal (evaluate portable-pty + xterm.js).
+1. Run `docs/testing/manual-ports.md` and `docs/testing/manual-logs.md` on Windows.
+2. Phase 7: embedded PTY terminal (evaluate portable-pty + xterm.js); the user
+   chose it after log navigation (2026-10-30).
 3. Before release: install the CI NSIS installer by hand on Windows 11.
 4. Later: re-enable the Ubuntu/Fedora CI jobs.

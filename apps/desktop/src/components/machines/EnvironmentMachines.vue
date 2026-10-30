@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { CircleAlert, CircleCheck, CircleX, LoaderCircle, SquareTerminal } from '@lucide/vue'
+import {
+  CircleAlert,
+  CircleCheck,
+  CircleX,
+  History,
+  LoaderCircle,
+  SquareTerminal,
+} from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import StatusBadge from '@/components/status/StatusBadge.vue'
 import DestroyMachinesDialog from './DestroyMachinesDialog.vue'
@@ -171,7 +178,7 @@ async function run(action: LifecycleAction, names: string[]) {
         <li
           v-for="m in machines"
           :key="m.name"
-          class="grid grid-cols-[auto_minmax(0,1fr)_auto_4rem] items-center gap-3 px-4 py-2.5"
+          class="grid grid-cols-[auto_minmax(0,1fr)_auto_6rem] items-center gap-3 px-4 py-2.5"
           :title="m.stateLong ?? undefined"
         >
           <input
@@ -220,6 +227,27 @@ async function run(action: LifecycleAction, names: string[]) {
             <StatusBadge :state="m.ui" />
           </span>
           <span class="flex items-center justify-end gap-0.5">
+            <Button
+              variant="ghost"
+              size="icon"
+              class="size-7"
+              title="Operations that named this machine"
+              :aria-label="`Operation history of ${m.name}`"
+              as-child
+            >
+              <RouterLink
+                :to="{
+                  path: '/operations',
+                  query: {
+                    project: environment.projectId,
+                    environment: environment.id,
+                    machine: m.name,
+                  },
+                }"
+              >
+                <History />
+              </RouterLink>
+            </Button>
             <Button
               v-if="m.ui === 'running' && m.capabilities.includes('ssh')"
               variant="ghost"

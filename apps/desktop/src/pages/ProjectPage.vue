@@ -11,6 +11,7 @@ import {
   FileJson,
   Folder,
   FolderOpen,
+  History,
   Layers,
   Link,
   Pencil,
@@ -249,6 +250,11 @@ async function removeEnvironment(id: string, name: string) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent>
+            <DropdownMenuItem
+              @select="router.push({ path: '/operations', query: { project: project.id } })"
+            >
+              <History /> Operation history
+            </DropdownMenuItem>
             <DropdownMenuItem @select="showMetadata = true">
               <FileJson /> Portable file…
             </DropdownMenuItem>

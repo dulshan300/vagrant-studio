@@ -102,7 +102,7 @@ export const useOperationsStore = defineStore('operations', () => {
 
   async function load() {
     try {
-      operations.value = await operationsApi.list(null, 200)
+      operations.value = await operationsApi.list({}, 200)
       error.value = null
     } catch (e) {
       error.value = errorMessage(e)

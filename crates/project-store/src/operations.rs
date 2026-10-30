@@ -1,6 +1,6 @@
 use time::OffsetDateTime;
 use vagrant_studio_domain::{
-    EnvironmentId, NewOperation, Operation, OperationId, OperationStatus, OperationType,
+    EnvironmentId, NewOperation, Operation, OperationId, OperationStatus, OperationType, ProjectId,
 };
 
 use crate::{Result, Store, StoreError, now};
@@ -59,6 +59,15 @@ impl TryFrom<OperationRow> for Operation {
     }
 }
 
+/// Which operations [`Store::list_operations`] returns. Unset fields match
+/// everything; `machine` matches operations that named that machine.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct OperationFilter {
+    pub project_id: Option<ProjectId>,
+    pub environment_id: Option<EnvironmentId>,
+    pub machine: Option<String>,
+}
+
 /// Last observed `vagrant status` for an environment, stored as JSON.
 #[derive(Debug, Clone, PartialEq, sqlx::FromRow)]
 pub struct EnvironmentStatusRecord {
@@ -73,6 +82,7 @@ pub struct EnvironmentStatusRecord {
 impl Store {
     pub async fn insert_operation(&self, new: &NewOperation, log_path: &str) -> Result<Operation> {
         let id = OperationId::new();
+        let mut tx = self.pool.begin().await?;
         sqlx::query(
             "INSERT INTO operations (id, project_id, environment_id, machine_name, target_label, operation_type, status, command_line, working_dir, log_path, created_at)
              VALUES (?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?)",
@@ -87,8 +97,18 @@ impl Store {
         .bind(&new.working_dir)
         .bind(log_path.replace("{id}", &id.to_string()))
         .bind(now())
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
+        for machine in &new.machines {
+            sqlx::query(
+                "INSERT OR IGNORE INTO operation_machines (operation_id, machine_name) VALUES (?, ?)",
+            )
+            .bind(id.to_string())
+            .bind(machine)
+            .execute(&mut *tx)
+            .await?;
+        }
+        tx.commit().await?;
         self.get_operation(id)
             .await?
             .ok_or_else(|| StoreError::Corrupt("inserted operation not found".into()))
@@ -105,17 +125,21 @@ impl Store {
     /// Most recent first (UUIDv7 ids sort by creation time).
     pub async fn list_operations(
         &self,
-        environment_id: Option<EnvironmentId>,
+        filter: &OperationFilter,
         limit: i64,
     ) -> Result<Vec<Operation>> {
-        let rows: Vec<OperationRow> = match environment_id {
-            Some(env) => sqlx::query_as(
-                "SELECT * FROM operations WHERE environment_id = ? ORDER BY id DESC LIMIT ?",
-            )
-            .bind(env.to_string())
-            .bind(limit),
-            None => sqlx::query_as("SELECT * FROM operations ORDER BY id DESC LIMIT ?").bind(limit),
-        }
+        let rows: Vec<OperationRow> = sqlx::query_as(
+            "SELECT * FROM operations
+             WHERE (?1 IS NULL OR project_id = ?1)
+               AND (?2 IS NULL OR environment_id = ?2)
+               AND (?3 IS NULL OR id IN
+                    (SELECT operation_id FROM operation_machines WHERE machine_name = ?3))
+             ORDER BY id DESC LIMIT ?4",
+        )
+        .bind(filter.project_id.map(|i| i.to_string()))
+        .bind(filter.environment_id.map(|i| i.to_string()))
+        .bind(&filter.machine)
+        .bind(limit)
         .fetch_all(&self.pool)
         .await?;
         rows.into_iter().map(Operation::try_from).collect()
@@ -233,6 +257,7 @@ pub(crate) mod tests {
             project_id: None,
             environment_id: env,
             machine_name: None,
+            machines: vec![],
             target_label: "Web · default".into(),
             operation_type: OperationType::Status,
             command_line: "vagrant status --machine-readable".into(),
@@ -328,15 +353,20 @@ pub(crate) mod tests {
         let host = s.insert_operation(&new_op(None), "").await.unwrap();
         let ids = |ops: Vec<Operation>| ops.into_iter().map(|o| o.id).collect::<Vec<_>>();
 
+        let all = OperationFilter::default();
+        let in_env = OperationFilter {
+            environment_id: Some(env),
+            ..all.clone()
+        };
         assert_eq!(
-            ids(s.list_operations(None, 10).await.unwrap()),
+            ids(s.list_operations(&all, 10).await.unwrap()),
             vec![host.id, first.id]
         );
         assert_eq!(
-            ids(s.list_operations(Some(env), 10).await.unwrap()),
+            ids(s.list_operations(&in_env, 10).await.unwrap()),
             vec![first.id]
         );
-        assert_eq!(s.list_operations(None, 1).await.unwrap().len(), 1);
+        assert_eq!(s.list_operations(&all, 1).await.unwrap().len(), 1);
 
         s.delete_environment(env).await.unwrap();
         let kept = s.get_operation(first.id).await.unwrap().unwrap();
@@ -365,5 +395,47 @@ pub(crate) mod tests {
         );
         s.delete_environment(env).await.unwrap();
         assert_eq!(s.get_environment_status(env).await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn history_filters_by_project_and_named_machines() {
+        let s = store().await;
+        let env = environment(&s).await;
+        let project = s.get_environment(env).await.unwrap().unwrap().project_id;
+        let op = |machines: &[&str]| NewOperation {
+            project_id: Some(project),
+            machine_name: match machines {
+                [one] => Some((*one).to_owned()),
+                _ => None,
+            },
+            machines: machines.iter().map(|m| (*m).to_owned()).collect(),
+            ..new_op(Some(env))
+        };
+        let both = s.insert_operation(&op(&["web", "db"]), "").await.unwrap();
+        let web = s.insert_operation(&op(&["web"]), "").await.unwrap();
+        let status = s.insert_operation(&op(&[]), "").await.unwrap();
+        s.insert_operation(&new_op(None), "").await.unwrap();
+        let ids = |ops: Vec<Operation>| ops.into_iter().map(|o| o.id).collect::<Vec<_>>();
+        let store = &s;
+        let list = |filter: OperationFilter| async move {
+            ids(store.list_operations(&filter, 10).await.unwrap())
+        };
+
+        let in_project = OperationFilter {
+            project_id: Some(project),
+            ..Default::default()
+        };
+        assert_eq!(
+            list(in_project.clone()).await,
+            vec![status.id, web.id, both.id]
+        );
+        let machine = |name: &str| OperationFilter {
+            environment_id: Some(env),
+            machine: Some(name.into()),
+            ..in_project.clone()
+        };
+        assert_eq!(list(machine("web")).await, vec![web.id, both.id]);
+        assert_eq!(list(machine("db")).await, vec![both.id]);
+        assert_eq!(list(machine("cache")).await, vec![]);
     }
 }
