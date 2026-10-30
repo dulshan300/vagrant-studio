@@ -7,6 +7,7 @@ pub mod network;
 pub mod operations;
 pub mod projects;
 pub mod provisioning;
+pub mod snapshots;
 pub mod terminal;
 pub mod vagrantfile;
 pub mod workspace;

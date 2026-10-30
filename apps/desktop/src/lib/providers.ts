@@ -11,6 +11,8 @@ export const CAPABILITY_LABEL: Record<Capability, string> = {
   'synced_folder.default': 'Synced folders',
   'config.cpu_memory': 'CPU and memory settings',
   ssh: 'SSH',
+  snapshot: 'Snapshots',
+  export: 'Export to a box file',
 }
 
 export const SUPPORT_LABEL: Record<ProviderCheck['support'], string> = {

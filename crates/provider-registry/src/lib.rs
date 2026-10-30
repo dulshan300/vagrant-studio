@@ -8,6 +8,7 @@
 
 mod compat;
 mod docker;
+mod libvirt;
 mod ports;
 mod probe;
 mod tools;
@@ -31,6 +32,7 @@ use vagrant_studio_vagrant_adapter::readiness::{
 
 pub use compat::{VirtualBoxSupport, virtualbox_support};
 pub use docker::Docker;
+pub use libvirt::Libvirt;
 pub use ports::{HostPort, ports_in_use};
 pub use probe::{HostProbe, SystemProbe};
 pub use virtualbox::{BridgedInterface, VirtualBox, bridged_interfaces};
@@ -58,9 +60,13 @@ pub enum Capability {
     ConfigCpuMemory,
     #[serde(rename = "ssh")]
     Ssh,
+    #[serde(rename = "snapshot")]
+    Snapshot,
+    #[serde(rename = "export")]
+    Export,
 }
 
-/// The capabilities Vagrant's VM providers (VirtualBox, VMware Desktop) offer.
+/// The capabilities Vagrant's VM providers offer.
 const VM_CAPABILITIES: &[Capability] = &[
     Capability::LifecycleBasic,
     Capability::LifecycleSuspend,
@@ -71,6 +77,8 @@ const VM_CAPABILITIES: &[Capability] = &[
     Capability::SyncedFolderDefault,
     Capability::ConfigCpuMemory,
     Capability::Ssh,
+    Capability::Snapshot,
+    Capability::Export,
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -176,6 +184,10 @@ pub trait ProviderAdapter: Send + Sync {
     fn kind(&self) -> ProviderKind;
     /// What the provider supports once it is usable.
     fn capabilities(&self) -> &'static [Capability];
+    /// Whether the provider exists on this OS; others aren't reported at all.
+    fn runs_on(&self, _os: HostOs) -> bool {
+        true
+    }
     fn detect<'a>(&'a self, ctx: &'a Context<'a>) -> DetectFuture<'a>;
 }
 
@@ -190,6 +202,7 @@ impl Default for Registry {
             adapters: vec![
                 Box::new(VirtualBox),
                 Box::new(VmwareDesktop),
+                Box::new(Libvirt),
                 Box::new(Docker),
             ],
         }
@@ -226,7 +239,7 @@ impl Registry {
             plugins: &plugins,
         };
         let mut providers = Vec::with_capacity(self.adapters.len());
-        for adapter in &self.adapters {
+        for adapter in self.adapters.iter().filter(|a| a.runs_on(ctx.os)) {
             let detection = adapter.detect(&ctx).await;
             providers.push(report(adapter.as_ref(), detection, ctx.os));
         }

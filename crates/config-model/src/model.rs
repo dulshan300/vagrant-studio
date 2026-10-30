@@ -197,6 +197,7 @@ pub struct ProviderSettings {
 pub enum ProviderKind {
     Virtualbox,
     VmwareDesktop,
+    Libvirt,
 }
 
 impl ProviderKind {
@@ -204,6 +205,7 @@ impl ProviderKind {
         match self {
             Self::Virtualbox => "virtualbox",
             Self::VmwareDesktop => "vmware_desktop",
+            Self::Libvirt => "libvirt",
         }
     }
 
@@ -211,6 +213,7 @@ impl ProviderKind {
         match s {
             "virtualbox" => Some(Self::Virtualbox),
             "vmware_desktop" => Some(Self::VmwareDesktop),
+            "libvirt" => Some(Self::Libvirt),
             _ => None,
         }
     }

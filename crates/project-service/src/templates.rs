@@ -11,6 +11,7 @@ use serde::Serialize;
 pub const TEMPLATE_PROVIDERS: &[(&str, &str)] = &[
     ("virtualbox", "VirtualBox"),
     ("vmware_desktop", "VMware Desktop"),
+    ("libvirt", "libvirt"),
 ];
 
 /// A built-in starting point for a new project's Vagrantfile.
@@ -146,6 +147,12 @@ impl<'a> ProviderBlock<'a> {
                 format!("{target}.vm.provider \"vmware_desktop\" do |v|"),
                 format!("  v.vmx[\"numvcpus\"] = \"{cpus}\""),
                 format!("  v.vmx[\"memsize\"] = \"{memory_mb}\""),
+                "end".to_owned(),
+            ],
+            "libvirt" => vec![
+                format!("{target}.vm.provider \"libvirt\" do |lv|"),
+                format!("  lv.cpus = {cpus}"),
+                format!("  lv.memory = {memory_mb}"),
                 "end".to_owned(),
             ],
             _ => vec![

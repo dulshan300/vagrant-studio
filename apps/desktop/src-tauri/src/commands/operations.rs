@@ -68,15 +68,15 @@ pub async fn get_host_readiness(
 }
 
 /// What to run in an environment, beyond the command itself.
-struct EnvironmentRun {
-    operation_type: OperationType,
-    command: VagrantCommand,
-    machines: Vec<MachineName>,
-    timeout: Duration,
-    confirmation: Option<ConfirmationProof>,
+pub(crate) struct EnvironmentRun {
+    pub operation_type: OperationType,
+    pub command: VagrantCommand,
+    pub machines: Vec<MachineName>,
+    pub timeout: Duration,
+    pub confirmation: Option<ConfirmationProof>,
 }
 
-async fn start_environment_operation(
+pub(crate) async fn start_environment_operation(
     projects: &ProjectService,
     engine: &OperationEngine,
     environment_id: EnvironmentId,
@@ -163,7 +163,7 @@ pub async fn validate_environment(
 }
 
 /// Machines checked against the last `vagrant status`, in Vagrantfile order.
-async fn lifecycle_targets(
+pub(crate) async fn lifecycle_targets(
     engine: &OperationEngine,
     environment_id: EnvironmentId,
     machines: &[String],

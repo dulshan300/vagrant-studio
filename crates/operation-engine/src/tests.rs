@@ -679,6 +679,43 @@ async fn cancelled_lifecycle_still_refreshes_status() {
 }
 
 #[tokio::test]
+async fn snapshot_restore_needs_confirmation_and_refreshes_status() {
+    let h = harness(
+        FakeRunner::new("==> web: Restoring the snapshot", 0).with_status("1,web,state,running\n"),
+    )
+    .await;
+    let restore = || OperationRequest {
+        operation_type: OperationType::SnapshotRestore,
+        command: VagrantCommand::SnapshotRestore {
+            machine: names(&["web"]).remove(0),
+            name: "base".to_owned().try_into().unwrap(),
+        },
+        ..status_request(h.env)
+    };
+    assert!(matches!(
+        h.engine.run(restore()).await,
+        Err(EngineError::Confirmation(_))
+    ));
+
+    let confirmation = h
+        .engine
+        .confirm(Some(h.env), restore().command, "base".into());
+    let mut req = restore();
+    req.confirmation = Some(ConfirmationProof {
+        token: confirmation.token,
+        typed: "base".into(),
+    });
+    let op = h.engine.run(req).await.unwrap();
+    assert_eq!(op.status, OperationStatus::Succeeded);
+    assert_eq!(op.operation_type, OperationType::SnapshotRestore);
+    assert_eq!(
+        h.runner.calls()[0],
+        "snapshot restore --no-provision --no-tty web base"
+    );
+    assert_eq!(h.runner.calls()[1], "status --machine-readable");
+}
+
+#[tokio::test]
 async fn destroy_requires_a_matching_single_use_confirmation() {
     let h = harness(
         FakeRunner::new("", 0)

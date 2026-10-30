@@ -35,5 +35,8 @@ vagrant-studio-provider-registry.workspace = true
 vagrant-studio-terminal.workspace = true
 vagrant-studio-vagrant-adapter.workspace = true
 
+[dev-dependencies]
+tempfile.workspace = true
+
 [lints]
 workspace = true

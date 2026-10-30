@@ -356,9 +356,9 @@ fn unsupported_files_name_the_first_line_they_cannot_show() {
             "ansible",
         ),
         (
-            "Vagrant.configure(\"2\") do |config|\n  config.vm.provider \"libvirt\" do |lv|\n  end\nend\n",
+            "Vagrant.configure(\"2\") do |config|\n  config.vm.provider \"hyperv\" do |h|\n  end\nend\n",
             2,
-            "libvirt",
+            "hyperv",
         ),
         (
             "Vagrant.configure(\"2\") do |config|\n  (1..3).each do |i|\n  end\nend\n",

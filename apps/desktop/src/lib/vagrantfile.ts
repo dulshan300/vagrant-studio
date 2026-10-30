@@ -12,6 +12,7 @@ import type {
 export const PROVIDER_LABELS: Record<ProviderKind, string> = {
   virtualbox: 'VirtualBox',
   vmware_desktop: 'VMware Desktop',
+  libvirt: 'libvirt',
 }
 
 export const DEFAULT_BOX = 'bento/ubuntu-24.04'
@@ -30,7 +31,7 @@ export function emptySettings(): MachineSettings {
 }
 
 export function isProviderKind(provider: string | null): provider is ProviderKind {
-  return provider === 'virtualbox' || provider === 'vmware_desktop'
+  return provider === 'virtualbox' || provider === 'vmware_desktop' || provider === 'libvirt'
 }
 
 /** Starting point for an environment that has no Vagrantfile yet. */

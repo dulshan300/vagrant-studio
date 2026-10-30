@@ -1,0 +1,6 @@
+1793380646,web,metadata,provider,virtualbox
+1793380647,db,metadata,provider,vmware_desktop
+1793380647,web,ui,output,==> web: 
+1793380647,web,ui,detail,after setup
+1793380647,web,ui,detail,base
+1793380648,db,ui,info,==> db: VM not created. Moving on...

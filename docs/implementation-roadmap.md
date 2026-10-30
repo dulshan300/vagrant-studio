@@ -82,8 +82,9 @@ Acceptance: app launches on target OSes; UI navigable; CI runs tests; no new war
 - [x] External editor integration, Git status, notes and tasks, project shortcuts, log navigation, cross-project port warnings. Done: open in editor (confirmed on Windows by the user 2026-10-30). Done: notes and tasks (confirmed on Windows by the user 2026-10-30). Done in code: Git status, Git init on create, Version control panel with stage/commit (walkthrough passed on Windows, user, 2026-10-30). Done in code: cross-project port warnings (walkthrough `docs/testing/manual-ports.md` passed on Windows, user, 2026-10-30). Project shortcuts: covered by existing features (user, 2026-10-30). Done in code: log navigation (output search and filters, history per project/environment/machine via migration 0004, show log file and logs folder; walkthrough `docs/testing/manual-logs.md` passed on Windows, user, 2026-10-30)
 
 ## Phase 8 — Additional providers and advanced capabilities
-- [ ] Choose the next provider (libvirt on Fedora is the likely first); adapters, prerequisites, diagnostics, tests
-- [ ] Capability-gated snapshots, optional metrics, export and recovery assistance
+- [x] Next provider: libvirt. Adapter, prerequisites, diagnostics, tests, templates and visual settings. Not run on a real libvirt host yet (Phase 9 test matrix)
+- [x] Capability-gated snapshots, export to a `.box` file and recovery hints
+- [ ] Optional metrics: deferred, no reliable common source (docs/provider-capabilities.md)
 
 ## Phase 9 — Release hardening
 - [ ] Full test matrix on clean Windows/Ubuntu/Fedora (including VirtualBox verification on Ubuntu); missing-Vagrant/provider cases; invalid Vagrantfiles; interrupted operations; paths with spaces and non-ASCII characters; DB upgrade tests

@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
+import { save } from '@tauri-apps/plugin-dialog'
 import { hasBackend } from './app'
 import { BackendUnavailableError } from './errors'
 import type { ProvisionerList } from '@/types/vagrantfile'
@@ -11,9 +12,11 @@ import type {
   LifecycleAction,
   LogLine,
   MachineProvisioning,
+  MachineSnapshots,
   Operation,
   OperationEvent,
   Provisioning,
+  SnapshotChange,
 } from '@/types/operations'
 
 /** Must match OPERATION_EVENT in src-tauri/src/commands/operations.rs. */
@@ -74,6 +77,35 @@ export const operationsApi = {
     call<MachineProvisioning[]>('get_operation_provisioning', { operationId }),
   latestProvisioning: (environmentId: string) =>
     call<MachineProvisioning[]>('get_latest_provisioning', { environmentId }),
+  snapshots: (environmentId: string, machine: string) =>
+    call<MachineSnapshots>('list_snapshots', { environmentId, machine }),
+  saveSnapshot: (environmentId: string, machine: string, name: string) =>
+    call<Operation>('save_snapshot', { environmentId, machine, name }),
+  requestSnapshotConfirmation: (
+    environmentId: string,
+    machine: string,
+    change: SnapshotChange,
+    name: string,
+  ) =>
+    call<Confirmation>('request_snapshot_confirmation', { environmentId, machine, change, name }),
+  changeSnapshot: (
+    environmentId: string,
+    machine: string,
+    change: SnapshotChange,
+    name: string,
+    confirmation: ConfirmationProof,
+  ) => call<Operation>('change_snapshot', { environmentId, machine, change, name, confirmation }),
+  exportMachine: (environmentId: string, machine: string, output: string) =>
+    call<Operation>('export_machine', { environmentId, machine, output }),
+}
+
+/** Native picker for the new `.box` file. Resolves to null when cancelled. */
+export async function pickExportFile(machine: string): Promise<string | null> {
+  if (!hasBackend()) throw new BackendUnavailableError()
+  return save({
+    defaultPath: `${machine}.box`,
+    filters: [{ name: 'Vagrant box', extensions: ['box'] }],
+  })
 }
 
 export interface OperationFilter {

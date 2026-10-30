@@ -3,7 +3,10 @@
 
 use serde::{Deserialize, Serialize};
 
+use std::path::PathBuf;
+
 use crate::boxes::{BoxAdd, BoxRef, BoxSource};
+use crate::snapshot::SnapshotName;
 
 /// Vagrant machine names: letters, digits, `-`, `_`, `.`, and not starting
 /// with `-` (so a name can never be read as an option).
@@ -226,6 +229,28 @@ pub enum VagrantCommand {
     /// Removes exactly one installed box. Always `--force`: the UI asks for
     /// confirmation first and shows which machines use the box.
     BoxRemove(BoxRef),
+    SnapshotList {
+        machine: MachineName,
+    },
+    SnapshotSave {
+        machine: MachineName,
+        name: SnapshotName,
+    },
+    /// Only puts the machine back: `--no-provision` keeps Vagrant from
+    /// running provisioners on the restored state.
+    SnapshotRestore {
+        machine: MachineName,
+        name: SnapshotName,
+    },
+    SnapshotDelete {
+        machine: MachineName,
+        name: SnapshotName,
+    },
+    /// Exports a machine as a `.box` file at `output`.
+    Package {
+        machine: MachineName,
+        output: PathBuf,
+    },
 }
 
 impl VagrantCommand {
@@ -290,6 +315,41 @@ impl VagrantCommand {
                 args.push(b.name.clone());
                 args
             }
+            Self::SnapshotList { machine } => vec![
+                "snapshot".into(),
+                "list".into(),
+                "--machine-readable".into(),
+                machine.as_str().to_owned(),
+            ],
+            Self::SnapshotSave { machine, name } => vec![
+                "snapshot".into(),
+                "save".into(),
+                "--no-tty".into(),
+                machine.as_str().to_owned(),
+                name.as_str().to_owned(),
+            ],
+            Self::SnapshotRestore { machine, name } => vec![
+                "snapshot".into(),
+                "restore".into(),
+                "--no-provision".into(),
+                "--no-tty".into(),
+                machine.as_str().to_owned(),
+                name.as_str().to_owned(),
+            ],
+            Self::SnapshotDelete { machine, name } => vec![
+                "snapshot".into(),
+                "delete".into(),
+                "--no-tty".into(),
+                machine.as_str().to_owned(),
+                name.as_str().to_owned(),
+            ],
+            Self::Package { machine, output } => vec![
+                "package".into(),
+                "--output".into(),
+                output.to_string_lossy().into_owned(),
+                "--no-tty".into(),
+                machine.as_str().to_owned(),
+            ],
             Self::Lifecycle {
                 action,
                 machines,
@@ -311,13 +371,20 @@ impl VagrantCommand {
 
     /// Whether the command changes machines (and so needs the environment lock).
     pub fn is_mutating(&self) -> bool {
-        matches!(self, Self::Lifecycle { .. })
+        matches!(
+            self,
+            Self::Lifecycle { .. }
+                | Self::SnapshotSave { .. }
+                | Self::SnapshotRestore { .. }
+                | Self::SnapshotDelete { .. }
+                | Self::Package { .. }
+        )
     }
 
     pub fn is_destructive(&self) -> bool {
         match self {
             Self::Lifecycle { action, .. } => action.is_destructive(),
-            Self::BoxRemove(_) => true,
+            Self::BoxRemove(_) | Self::SnapshotRestore { .. } | Self::SnapshotDelete { .. } => true,
             _ => false,
         }
     }

@@ -1,0 +1,3 @@
+1793380593,web,metadata,provider,virtualbox
+1793380596,web,ui,output,==> web: No snapshots have been taken yet!
+1793380596,web,ui,detail,    web: You can take a snapshot using `vagrant snapshot save`. Note that\n    web: not all providers support this yet. Once a snapshot is taken%!(VAGRANT_COMMA) you\n    web: can list them using this command%!(VAGRANT_COMMA) and use commands such as\n    web: `vagrant snapshot restore` to go back to a certain snapshot.

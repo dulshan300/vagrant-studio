@@ -54,6 +54,14 @@ impl Runner for ScriptedRunner {
             ))
             .unwrap();
             (0, fixture, "")
+        } else if program.ends_with("virsh") && inv.args == ["--version"] {
+            (0, "10.0.0".to_owned(), "")
+        } else if program.ends_with("virsh") {
+            (
+                1,
+                String::new(),
+                "error: authentication unavailable: permission denied",
+            )
         } else if program.ends_with("VBoxManage") {
             (0, self.virtualbox.to_owned(), "")
         } else if program.ends_with("docker") {
@@ -179,6 +187,82 @@ async fn everything_installed_and_running() {
     );
     assert!(docker.capabilities.contains(&Capability::LifecycleBasic));
     assert!(!docker.capabilities.contains(&Capability::LifecycleSuspend));
+    assert!(vb.capabilities.contains(&Capability::Snapshot));
+    assert!(!docker.capabilities.contains(&Capability::Snapshot));
+    assert!(!docker.capabilities.contains(&Capability::Export));
+}
+
+fn linux_with_libvirt() -> Host {
+    Host {
+        os: HostOs::Linux,
+        found: vec!["vagrant", "virsh"],
+        probe: FakeProbe {
+            utility: false,
+            paths: vec!["/dev/kvm"],
+            hypervisor: None,
+        },
+        ..Host::default()
+    }
+}
+
+#[tokio::test]
+async fn libvirt_is_linux_only() {
+    let ids: Vec<_> = linux_with_libvirt()
+        .check()
+        .await
+        .providers
+        .iter()
+        .map(|p| p.id)
+        .collect();
+    assert_eq!(ids, ["virtualbox", "vmware_desktop", "libvirt", "docker"]);
+}
+
+#[tokio::test]
+async fn libvirt_reports_missing_plugin_and_kvm_and_daemon() {
+    // The fixture's plugin list has no vagrant-libvirt.
+    let r = linux_with_libvirt().check().await;
+    let lv = provider(&r, "libvirt");
+    assert_eq!(lv.state, ProviderState::Attention);
+    assert_eq!(lv.support, SupportLevel::Detected);
+    assert_eq!(lv.version.as_deref(), Some("10.0.0"));
+    assert!(lv.capabilities.contains(&Capability::Snapshot));
+    assert!(
+        problem(lv)
+            .fix
+            .as_deref()
+            .unwrap()
+            .contains("vagrant-libvirt")
+    );
+    assert!(
+        lv.findings
+            .iter()
+            .any(|f| f.level == Level::Ok && f.message.contains("/dev/kvm"))
+    );
+    assert!(
+        lv.findings
+            .iter()
+            .any(|f| f.message.contains("isn't reachable") && f.message.contains("denied"))
+    );
+
+    let mut host = linux_with_libvirt();
+    host.probe.paths.clear();
+    let r = host.check().await;
+    assert!(
+        provider(&r, "libvirt")
+            .findings
+            .iter()
+            .any(|f| f.level == Level::Error && f.message.contains("/dev/kvm is missing"))
+    );
+}
+
+#[tokio::test]
+async fn libvirt_without_virsh_is_unavailable() {
+    let mut host = linux_with_libvirt();
+    host.found = vec!["vagrant"];
+    let r = host.check().await;
+    let lv = provider(&r, "libvirt");
+    assert_eq!(lv.state, ProviderState::Unavailable);
+    assert!(lv.capabilities.is_empty());
 }
 
 #[tokio::test]

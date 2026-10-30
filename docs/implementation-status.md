@@ -3,6 +3,20 @@
 _Last updated: 2026-10-30_
 
 ## Current phase
+**Phase 8 — Additional providers and advanced capabilities: done in code,
+awaiting the walkthrough** (branch `phase-8-providers`, 2026-10-30).
+`docs/testing/manual-snapshots.md` has not been run through the app yet. New:
+libvirt provider (Linux only: adapter, prerequisite checks, templates, visual
+CPU and memory settings; never run on a real libvirt host, so it can show only
+as Detected), snapshots (`snapshot` capability: list, save, typed confirmation
+for restore and delete), export to a new `.box` file (`export` capability,
+stopped machines only, never overwrites; adds `dialog:allow-save`), recovery
+hints on failed and interrupted operations. Metrics are deferred: no reliable
+source common to the providers (docs/provider-capabilities.md). Hyper-V not
+started: the role isn't installed on the dev host. Vagrant's snapshot list puts
+names on `ui,detail` lines, and its "no snapshots" help too; see
+`crates/vagrant-adapter/src/snapshot.rs`.
+
 **Phase 7 — Developer workspace: complete 2026-10-30 on Windows** (branch
 `phase-7-developer-workspace`, not yet merged into `main`). Walkthroughs
 `manual-terminal.md`, `manual-logs.md` and `manual-ports.md` passed on
@@ -114,6 +128,18 @@ quitting.
   (user). VirtualBox **Verified on Windows 11** under Hyper-V (smoke test and
   `docs/testing/manual-virtualbox.md`). Ubuntu verification dropped from this phase
   by the user; it belongs to the Phase 9 test matrix.
+
+## Phase 8 results (2026-10-30)
+| Check | Result |
+|---|---|
+| Rust tests, Linux | Pass, `cargo test --workspace` (new: snapshot parser on real fixtures, libvirt adapter with fakes, restore confirmation through the engine, export path checks) |
+| provider-registry, vagrant-adapter, config-model, project-service as Windows binaries | Pass |
+| Frontend typecheck, lint, tests | Pass, 116 tests |
+| `vagrant validate`, Windows Vagrant 2.4.9: 21 generated files incl. libvirt | Pass, 21/21; for libvirt this checks Ruby syntax only, the plugin isn't installed |
+| Real snapshots, CLI, VirtualBox and VMware Desktop | Pass (verification log) |
+| Real export, CLI, VirtualBox and VMware Desktop | Pass (verification log) |
+| Same actions through the app | **Not run**: `docs/testing/manual-snapshots.md` |
+| libvirt on a real host | **Not run** |
 
 ## Phase 6 results (2026-10-29)
 | Task | State |
@@ -283,7 +309,8 @@ Vagrant prints guest output to stdout; failure summaries of human-output command
 include the last output lines.
 
 ## Next recommended task
-1. Merge `phase-7-developer-workspace` into `main` and confirm Windows CI.
-2. Phase 8: choose the next provider (libvirt on Fedora is the likely first).
-3. Before release: install the CI NSIS installer by hand on Windows 11.
-4. Later: re-enable the Ubuntu/Fedora CI jobs.
+1. Run `docs/testing/manual-snapshots.md` on Windows.
+2. Merge `phase-8-providers` (includes Phase 7) into `main` and confirm Windows CI.
+3. Phase 9: include libvirt on Fedora in the test matrix.
+4. Before release: install the CI NSIS installer by hand on Windows 11.
+5. Later: re-enable the Ubuntu/Fedora CI jobs.

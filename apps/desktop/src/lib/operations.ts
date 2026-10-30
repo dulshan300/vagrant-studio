@@ -84,10 +84,14 @@ export function primaryAction(state: MachineState): LifecycleAction | null {
  * Machines a lifecycle operation names, read from its command line
  * (`vagrant <verb> [options] --no-tty <names…>`). Option values such as
  * provisioner names (which may contain spaces) come before `--no-tty`;
- * machine names never contain spaces or start with `-`.
+ * machine names never contain spaces or start with `-`. Snapshot and export
+ * operations name one machine, recorded as `machineName`.
  */
-export function targetMachines(op: Pick<Operation, 'operationType' | 'commandLine'>): string[] {
-  if (!(LIFECYCLE_ACTIONS as readonly string[]).includes(op.operationType)) return []
+export function targetMachines(
+  op: Pick<Operation, 'operationType' | 'commandLine'> & Partial<Pick<Operation, 'machineName'>>,
+): string[] {
+  if (!(LIFECYCLE_ACTIONS as readonly string[]).includes(op.operationType))
+    return op.machineName ? [op.machineName] : []
   const tokens = op.commandLine.split(' ')
   const end = tokens.indexOf('--no-tty')
   return tokens.slice(end === -1 ? 2 : end + 1).filter((t) => t && !t.startsWith('-'))
@@ -113,6 +117,10 @@ const TYPE_LABELS: Record<string, string> = {
   resume: 'Resume',
   provision: 'Provision',
   destroy: 'Destroy',
+  snapshot_save: 'Save snapshot',
+  snapshot_restore: 'Restore snapshot',
+  snapshot_delete: 'Delete snapshot',
+  package: 'Export box',
 }
 
 export function operationLabel(type: string): string {

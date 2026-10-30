@@ -60,7 +60,8 @@ describe('operation helpers', () => {
     expect(isActive({ status: 'cancel_requested' })).toBe(true)
     expect(isActive({ status: 'interrupted' })).toBe(false)
     expect(operationLabel('up')).toBe('Start')
-    expect(operationLabel('snapshot_save')).toBe('snapshot_save')
+    expect(operationLabel('snapshot_save')).toBe('Save snapshot')
+    expect(operationLabel('future_thing')).toBe('future_thing')
   })
 })
 

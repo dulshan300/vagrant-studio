@@ -51,6 +51,8 @@ const environmentProvider = computed(() => providerKinds.find((p) => p === props
 /** Providers without settings yet, the environment's own first. */
 const unusedProviders = computed(() =>
   providerKinds
+    // libvirt is Linux-only, so it is offered only to environments that use it.
+    .filter((p) => p !== 'libvirt' || p === environmentProvider.value)
     .filter((p) => !settings.value.providers.some((s) => s.provider === p))
     .sort(
       (a, b) => Number(b === environmentProvider.value) - Number(a === environmentProvider.value),

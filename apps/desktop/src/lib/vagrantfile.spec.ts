@@ -21,7 +21,7 @@ describe('starterModel', () => {
     expect(vmware.defaults.providers).toEqual([
       { provider: 'vmware_desktop', cpus: 2, memoryMb: 2048 },
     ])
-    expect(starterModel('libvirt').defaults.providers).toEqual([])
+    expect(starterModel('hyperv').defaults.providers).toEqual([])
     expect(starterModel(null).machines).toEqual([])
   })
 })

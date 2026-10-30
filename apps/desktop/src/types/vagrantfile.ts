@@ -1,7 +1,7 @@
 // Mirrors crates/config-model (model, Analysis) and the Vagrantfile DTOs in
 // crates/project-service/src/vagrantfile.rs.
 
-export type ProviderKind = 'virtualbox' | 'vmware_desktop'
+export type ProviderKind = 'virtualbox' | 'vmware_desktop' | 'libvirt'
 export type Protocol = 'tcp' | 'udp'
 export type ProvisionRun = 'once' | 'always' | 'never'
 export type LineEnding = 'lf' | 'crlf'

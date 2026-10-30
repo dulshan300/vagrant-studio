@@ -173,18 +173,19 @@ fn settings(w: &mut Writer, d: usize, v: &str, s: &MachineSettings) {
         let pv = match p.provider {
             ProviderKind::Virtualbox => "vb",
             ProviderKind::VmwareDesktop => "v",
+            ProviderKind::Libvirt => "lv",
         };
         w.line(
             d,
             &format!("{v}.vm.provider \"{}\" do |{pv}|", p.provider.as_str()),
         );
         match p.provider {
-            ProviderKind::Virtualbox => {
+            ProviderKind::Virtualbox | ProviderKind::Libvirt => {
                 if let Some(c) = p.cpus {
-                    w.line(d + 1, &format!("vb.cpus = {c}"));
+                    w.line(d + 1, &format!("{pv}.cpus = {c}"));
                 }
                 if let Some(m) = p.memory_mb {
-                    w.line(d + 1, &format!("vb.memory = {m}"));
+                    w.line(d + 1, &format!("{pv}.memory = {m}"));
                 }
             }
             ProviderKind::VmwareDesktop => {

@@ -99,6 +99,14 @@ export interface MachineProvisioning {
   runs: ProvisionerRun[]
 }
 
+/** Mirrors `commands::snapshots::MachineSnapshots`. */
+export interface MachineSnapshots {
+  machine: string
+  names: string[]
+}
+
+export type SnapshotChange = 'restore' | 'delete'
+
 export type FindingLevel = 'ok' | 'warning' | 'error'
 
 export interface Finding {
@@ -118,6 +126,8 @@ export type Capability =
   | 'synced_folder.default'
   | 'config.cpu_memory'
   | 'ssh'
+  | 'snapshot'
+  | 'export'
 
 /** Mirrors `vagrant_studio_provider_registry::ProviderReport`. */
 export interface ProviderCheck {

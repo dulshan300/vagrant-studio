@@ -27,6 +27,7 @@ import OperationStatusBadge from './OperationStatusBadge.vue'
 import { duration, isActive, operationLabel } from '@/lib/operations'
 import { highlight, matchingLines, step, viewLines, type LogFilter } from '@/lib/log-view'
 import { provisionerLabel } from '@/lib/provisioning'
+import { recoveryHint } from '@/lib/recovery'
 import { errorMessage } from '@/services/errors'
 import { operationsApi } from '@/services/operations'
 import { useOperationsStore } from '@/stores/operations'
@@ -42,6 +43,7 @@ const open = computed({
 })
 const op = computed(() => store.selected)
 const lines = computed(() => (op.value ? (store.logs[op.value.id] ?? []) : []))
+const recovery = computed(() => (op.value ? recoveryHint(op.value) : null))
 const provisioned = computed(() => (op.value ? (store.provisioning[op.value.id] ?? []) : []))
 const STATUS_TEXT = { succeeded: 'Succeeded', failed: 'Failed', unfinished: 'Interrupted' }
 
@@ -244,6 +246,9 @@ async function cancel() {
               "
             >
               {{ op.errorSummary }}
+            </p>
+            <p v-if="recovery" class="mt-2 rounded-md bg-surface-muted px-3 py-2 text-xs">
+              <strong class="font-medium">What to try:</strong> {{ recovery }}
             </p>
             <p v-if="cancelError" class="mt-2 text-xs text-status-failed">{{ cancelError }}</p>
           </header>

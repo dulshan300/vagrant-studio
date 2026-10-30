@@ -1,17 +1,20 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import {
+  Camera,
   CircleAlert,
   CircleCheck,
   CircleX,
   History,
   LoaderCircle,
+  PackageOpen,
   SquareTerminal,
 } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import StatusBadge from '@/components/status/StatusBadge.vue'
 import DestroyMachinesDialog from './DestroyMachinesDialog.vue'
 import ProvisionMachinesDialog from './ProvisionMachinesDialog.vue'
+import SnapshotsDialog from './SnapshotsDialog.vue'
 import { ACTION_META } from './actions'
 import {
   actionsFor,
@@ -25,6 +28,7 @@ import { relativeTime } from '@/lib/projects'
 import { PROVISION_COMMANDS, provisioningOutcome, type ProvisionCommand } from '@/lib/provisioning'
 import { hasBackend } from '@/services/app'
 import { errorMessage } from '@/services/errors'
+import { operationsApi, pickExportFile } from '@/services/operations'
 import { settingsApi } from '@/services/projects'
 import { terminalApi } from '@/services/terminal'
 import { useOperationsStore } from '@/stores/operations'
@@ -51,6 +55,8 @@ const destroyTargets = ref<string[]>([])
 const provisionOpen = ref(false)
 const provisionTargets = ref<string[]>([])
 const provisionCommands = ref<ProvisionCommand[]>([])
+const snapshotsOpen = ref(false)
+const snapshotsMachine = ref('')
 
 const machines = computed(() =>
   props.status.machines.map((m) => ({
@@ -122,6 +128,25 @@ async function openSsh(name: string) {
     const project = projects.projects.find((p) => p.id === props.environment.projectId)
     const context = project ? `${project.name} · ${props.environment.name}` : props.environment.name
     await terminals.openSsh(props.environment.id, name, context)
+  } catch (e) {
+    actionError.value = errorMessage(e)
+  }
+}
+
+function openSnapshots(name: string) {
+  snapshotsMachine.value = name
+  snapshotsOpen.value = true
+}
+
+/** Exports a stopped machine to a new `.box` file the user chooses. */
+async function exportBox(name: string) {
+  actionError.value = null
+  try {
+    const output = await pickExportFile(name)
+    if (!output) return
+    const op = await operationsApi.exportMachine(props.environment.id, name, output)
+    operations.track(op)
+    operations.open(op.id)
   } catch (e) {
     actionError.value = errorMessage(e)
   }
@@ -262,6 +287,28 @@ async function run(action: LifecycleAction, names: string[]) {
               </RouterLink>
             </Button>
             <Button
+              v-if="m.ui === 'stopped' && m.capabilities.includes('export')"
+              variant="ghost"
+              size="icon"
+              class="size-7"
+              title="vagrant package: export this stopped machine to a .box file"
+              :aria-label="`Export ${m.name} to a box file`"
+              @click="exportBox(m.name)"
+            >
+              <PackageOpen />
+            </Button>
+            <Button
+              v-if="m.ui !== 'notCreated' && m.capabilities.includes('snapshot')"
+              variant="ghost"
+              size="icon"
+              class="size-7"
+              title="vagrant snapshot: save, restore or delete snapshots"
+              :aria-label="`Snapshots of ${m.name}`"
+              @click="openSnapshots(m.name)"
+            >
+              <Camera />
+            </Button>
+            <Button
               v-if="m.ui === 'running' && m.capabilities.includes('ssh')"
               variant="ghost"
               size="icon"
@@ -296,6 +343,11 @@ async function run(action: LifecycleAction, names: string[]) {
       :environment-id="environment.id"
       :machines="provisionTargets"
       :commands="provisionCommands"
+    />
+    <SnapshotsDialog
+      v-model:open="snapshotsOpen"
+      :environment-id="environment.id"
+      :machine="snapshotsMachine"
     />
     <DestroyMachinesDialog
       v-model:open="destroyOpen"

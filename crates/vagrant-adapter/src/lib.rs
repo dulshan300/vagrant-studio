@@ -7,6 +7,7 @@ pub mod machine_readable;
 pub mod provision;
 pub mod readiness;
 pub mod runner;
+pub mod snapshot;
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -84,6 +85,26 @@ pub async fn query(
     command: &VagrantCommand,
     timeout: Duration,
 ) -> Result<Vec<machine_readable::Line>, QueryError> {
+    query_in(
+        runner,
+        program,
+        command,
+        std::env::temp_dir(),
+        vec![],
+        timeout,
+    )
+    .await
+}
+
+/// [`query`] for a command that reads an environment, run in its folder.
+pub async fn query_in(
+    runner: &dyn Runner,
+    program: &Path,
+    command: &VagrantCommand,
+    working_dir: PathBuf,
+    env: Vec<(String, String)>,
+    timeout: Duration,
+) -> Result<Vec<machine_readable::Line>, QueryError> {
     debug_assert!(!command.is_mutating() && !command.changes_boxes());
     let mut stdout = String::new();
     let mut stderr = String::new();
@@ -92,9 +113,9 @@ pub async fn query(
             Invocation {
                 program: program.to_path_buf(),
                 args: command.args(),
-                working_dir: std::env::temp_dir(),
+                working_dir,
                 timeout: Some(timeout),
-                env: vec![],
+                env,
             },
             Box::new(|line| {
                 let out = match line.stream {

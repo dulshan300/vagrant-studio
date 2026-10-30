@@ -890,6 +890,10 @@ fn named_machines(command: &VagrantCommand) -> Vec<String> {
         VagrantCommand::Lifecycle { machines, .. } => {
             machines.iter().map(|m| m.as_str().to_owned()).collect()
         }
+        VagrantCommand::SnapshotSave { machine, .. }
+        | VagrantCommand::SnapshotRestore { machine, .. }
+        | VagrantCommand::SnapshotDelete { machine, .. }
+        | VagrantCommand::Package { machine, .. } => vec![machine.as_str().to_owned()],
         _ => Vec::new(),
     }
 }

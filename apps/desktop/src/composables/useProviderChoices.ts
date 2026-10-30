@@ -8,7 +8,11 @@ import type { ProviderCheck } from '@/types/operations'
 export const KNOWN_PROVIDERS: readonly { id: string; name: string }[] = [
   { id: 'vmware_desktop', name: 'VMware Desktop' },
   { id: 'virtualbox', name: 'VirtualBox' },
+  { id: 'libvirt', name: 'libvirt' },
 ]
+
+/** Offered only where the host checks report them; libvirt doesn't exist on Windows. */
+const REPORTED_ONLY: readonly string[] = ['libvirt']
 
 export interface ProviderChoice {
   id: string
@@ -22,7 +26,10 @@ export interface ProviderChoice {
 
 /** Pure part, exported for tests. */
 export function buildChoices(checks: readonly ProviderCheck[] | null): ProviderChoice[] {
-  return KNOWN_PROVIDERS.map(({ id, name }) => {
+  const known = KNOWN_PROVIDERS.filter(
+    ({ id }) => !REPORTED_ONLY.includes(id) || checks?.some((c) => c.id === id),
+  )
+  return known.map(({ id, name }) => {
     const check = checks?.find((c) => c.id === id)
     if (!check) return { id, name, state: 'unknown', available: true, note: null }
     const problem = check.findings.find((f) => f.level !== 'ok')

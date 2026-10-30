@@ -68,6 +68,10 @@ pub enum OperationType {
     Resume,
     Provision,
     Destroy,
+    SnapshotSave,
+    SnapshotRestore,
+    SnapshotDelete,
+    Package,
     #[serde(untagged)]
     Other(String),
 }
@@ -88,6 +92,10 @@ impl OperationType {
             Self::Resume => "resume",
             Self::Provision => "provision",
             Self::Destroy => "destroy",
+            Self::SnapshotSave => "snapshot_save",
+            Self::SnapshotRestore => "snapshot_restore",
+            Self::SnapshotDelete => "snapshot_delete",
+            Self::Package => "package",
             Self::Other(s) => s,
         }
     }
@@ -107,6 +115,10 @@ impl OperationType {
             "resume" => Self::Resume,
             "provision" => Self::Provision,
             "destroy" => Self::Destroy,
+            "snapshot_save" => Self::SnapshotSave,
+            "snapshot_restore" => Self::SnapshotRestore,
+            "snapshot_delete" => Self::SnapshotDelete,
+            "package" => Self::Package,
             other => Self::Other(other.to_owned()),
         }
     }
