@@ -4,8 +4,12 @@ _Last updated: 2026-10-30_
 
 ## Current phase
 **Phase 8 — Additional providers and advanced capabilities: done in code,
-awaiting the walkthrough** (branch `phase-8-providers`, 2026-10-30).
-`docs/testing/manual-snapshots.md` has not been run through the app yet. New:
+export not yet run through the app** (branch `phase-8-providers`, 2026-10-30).
+`docs/testing/manual-snapshots.md`: the user reported "all pass" (2026-10-30, no
+itemized results), but the app's operation logs show only save, restore and
+delete of `base` on VMware Desktop, all succeeded. They show no export, no
+second snapshot and no duplicate-name attempt, so those steps stay unconfirmed
+until repeated. New:
 libvirt provider (Linux only: adapter, prerequisite checks, templates, visual
 CPU and memory settings; never run on a real libvirt host, so it can show only
 as Detected), snapshots (`snapshot` capability: list, save, typed confirmation
@@ -138,7 +142,8 @@ quitting.
 | `vagrant validate`, Windows Vagrant 2.4.9: 21 generated files incl. libvirt | Pass, 21/21; for libvirt this checks Ruby syntax only, the plugin isn't installed |
 | Real snapshots, CLI, VirtualBox and VMware Desktop | Pass (verification log) |
 | Real export, CLI, VirtualBox and VMware Desktop | Pass (verification log) |
-| Same actions through the app | **Not run**: `docs/testing/manual-snapshots.md` |
+| Snapshots through the app, VMware Desktop | **Pass**: save, restore, delete of `base` on `web` (operation logs, 2026-10-30). The save took about 4.5 minutes: VMware writes the 2 GB of memory in the background at about 8 MB/s |
+| Export, duplicate name and VirtualBox through the app | **No record**: user reported "all pass", operation logs show none of these |
 | libvirt on a real host | **Not run** |
 
 ## Phase 6 results (2026-10-29)
@@ -309,7 +314,7 @@ Vagrant prints guest output to stdout; failure summaries of human-output command
 include the last output lines.
 
 ## Next recommended task
-1. Run `docs/testing/manual-snapshots.md` on Windows.
+1. Repeat the export steps of `docs/testing/manual-snapshots.md` on Windows; no export is in the logs.
 2. Merge `phase-8-providers` (includes Phase 7) into `main` and confirm Windows CI.
 3. Phase 9: include libvirt on Fedora in the test matrix.
 4. Before release: install the CI NSIS installer by hand on Windows 11.
