@@ -142,8 +142,13 @@ pub fn spawn_terminal(launch: &TerminalLaunch, working_dir: &Path) -> io::Result
         const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
         command.creation_flags(CREATE_NEW_CONSOLE);
     }
+    spawn_detached(command)
+}
+
+/// Starts `command` without waiting for it, and reaps it when it exits so it
+/// doesn't linger as a zombie on Linux.
+pub(crate) fn spawn_detached(mut command: Command) -> io::Result<()> {
     let mut child = command.spawn()?;
-    // Reap the process when it exits so it doesn't linger as a zombie on Linux.
     std::thread::spawn(move || child.wait());
     Ok(())
 }

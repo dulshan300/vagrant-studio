@@ -5,6 +5,7 @@ import {
   Archive,
   ArchiveRestore,
   ChevronLeft,
+  Code,
   Clock,
   Ellipsis,
   FileJson,
@@ -34,6 +35,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { relativeTime } from '@/lib/projects'
 import { cn } from '@/lib/utils'
+import { editorApi } from '@/services/editor'
 import { errorMessage } from '@/services/errors'
 import { projectsApi } from '@/services/projects'
 import { useProjectsStore } from '@/stores/projects'
@@ -84,6 +86,15 @@ const toggleFavorite = () =>
 const toggleArchived = () =>
   run(() => store.setArchived(project.value!.id, project.value!.status !== 'archived'))
 const openFolder = () => run(() => projectsApi.openFolder(project.value!.id))
+
+async function openInEditor() {
+  actionError.value = null
+  try {
+    await editorApi.open(project.value!.id)
+  } catch (e) {
+    actionError.value = errorMessage(e)
+  }
+}
 
 async function removeEnvironment(id: string, name: string) {
   if (
@@ -163,6 +174,14 @@ async function removeEnvironment(id: string, name: string) {
       <div class="flex shrink-0 items-center gap-2">
         <Button variant="secondary" size="sm" @click="openFolder">
           <FolderOpen /> Open folder
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          title="Open the project folder in your code editor (choose it in Settings)"
+          @click="openInEditor"
+        >
+          <Code /> Open in editor
         </Button>
         <Button variant="secondary" size="sm" @click="showEdit = true">
           <Pencil /> Edit details

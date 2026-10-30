@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { Monitor, Moon, Sun } from '@lucide/vue'
 import { RadioGroupItem, RadioGroupRoot } from 'reka-ui'
 import PageHeader from '@/components/layout/PageHeader.vue'
@@ -11,11 +11,13 @@ import ProviderSelect from '@/components/providers/ProviderSelect.vue'
 import { useProviderChoices } from '@/composables/useProviderChoices'
 import { useFormErrors } from '@/composables/useFormErrors'
 import { hasBackend } from '@/services/app'
+import { editorApi } from '@/services/editor'
 import { settingsApi } from '@/services/projects'
 import { describeHost } from '@/components/host/host'
 import { isThemePreference, type ThemePreference } from '@/app/theme'
 import { useAppStore } from '@/stores/app'
 import { useSettingsStore } from '@/stores/settings'
+import type { DetectedEditor } from '@/types/app'
 
 const settings = useSettingsStore()
 const app = useAppStore()
@@ -26,6 +28,24 @@ const savedVagrantPath = ref('')
 const defaultProvider = ref<string | null>(null)
 const savedDefaultProvider = ref<string | null>(null)
 const providers = useProviderChoices()
+const editors = ref<DetectedEditor[]>([])
+/** '' = automatic, a detected editor's path, or 'custom'. */
+const editorChoice = ref('')
+const customEditor = ref('')
+const savedEditorPath = ref<string | null>(null)
+const editorPath = computed(() =>
+  editorChoice.value === 'custom' ? customEditor.value.trim() || null : editorChoice.value || null,
+)
+
+function showEditor(path: string | null) {
+  savedEditorPath.value = path
+  if (!path) editorChoice.value = ''
+  else if (editors.value.some((e) => e.path === path)) editorChoice.value = path
+  else {
+    editorChoice.value = 'custom'
+    customEditor.value = path
+  }
+}
 const locationErrors = useFormErrors()
 
 onMounted(async () => {
@@ -39,6 +59,8 @@ onMounted(async () => {
     vagrantPath.value = savedVagrantPath.value
     savedDefaultProvider.value = settings.defaultProvider
     defaultProvider.value = settings.defaultProvider
+    editors.value = await editorApi.list().catch(() => [])
+    showEditor(settings.editorPath)
   } catch (e) {
     locationErrors.set(e)
   }
@@ -51,6 +73,7 @@ async function saveLocation() {
       defaultProjectLocation: location.value.trim() || null,
       vagrantPath: vagrantPath.value.trim() || null,
       defaultProvider: defaultProvider.value,
+      editorPath: editorPath.value,
     })
     savedLocation.value = saved.defaultProjectLocation ?? ''
     location.value = savedLocation.value
@@ -59,6 +82,7 @@ async function saveLocation() {
     savedDefaultProvider.value = saved.defaultProvider
     defaultProvider.value = saved.defaultProvider
     providers.preferred.value = saved.defaultProvider
+    showEditor(saved.editorPath)
   } catch (e) {
     locationErrors.set(e)
   }
@@ -150,13 +174,44 @@ function onThemeChange(value: unknown) {
         >
           {{ locationErrors.field.value.provider }}
         </p>
+        <label for="settings-editor" class="mt-4 block text-xs font-medium">Code editor</label>
+        <select
+          id="settings-editor"
+          v-model="editorChoice"
+          class="rounded-md border bg-surface px-2 py-1.5 text-sm"
+        >
+          <option value="">
+            Automatic{{ editors.length ? ` (${editors[0]!.name})` : ' (none detected)' }}
+          </option>
+          <option v-for="e in editors" :key="e.path" :value="e.path">{{ e.name }}</option>
+          <option value="custom">Other program…</option>
+        </select>
+        <TextInput
+          v-if="editorChoice === 'custom'"
+          id="settings-editor-path"
+          v-model="customEditor"
+          aria-label="Editor program"
+          class="font-mono text-xs"
+          placeholder="Full path to the editor's program, e.g. C:\Program Files\…\editor.exe"
+        />
+        <p class="text-xs text-muted">
+          Used by Open in editor on project pages. The folder is passed as the only argument.
+        </p>
+        <p
+          v-if="locationErrors.field.value.editorPath"
+          class="text-xs text-status-failed"
+          role="alert"
+        >
+          {{ locationErrors.field.value.editorPath }}
+        </p>
         <div class="flex justify-end pt-2">
           <Button
             type="submit"
             :disabled="
               location === savedLocation &&
               vagrantPath === savedVagrantPath &&
-              defaultProvider === savedDefaultProvider
+              defaultProvider === savedDefaultProvider &&
+              editorPath === savedEditorPath
             "
           >
             Save

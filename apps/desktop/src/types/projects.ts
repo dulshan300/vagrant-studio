@@ -130,6 +130,8 @@ export interface AppSettings {
   vagrantPath: string | null
   /** Provider pre-selected for new projects and environments. */
   defaultProvider: string | null
+  /** Code editor executable; null uses the first detected editor. */
+  editorPath: string | null
 }
 
 /** Error shape returned by every backend command (src-tauri/src/commands/error.rs). */

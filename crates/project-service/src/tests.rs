@@ -424,6 +424,7 @@ async fn update_validates_and_settings_round_trip() {
         default_project_location: Some(h.path("")),
         vagrant_path: None,
         default_provider: Some("vmware_desktop".into()),
+        editor_path: None,
     };
     h.service.save_settings(settings.clone()).await.unwrap();
     assert_eq!(h.service.settings().await.unwrap(), settings);
@@ -431,8 +432,7 @@ async fn update_validates_and_settings_round_trip() {
         h.service
             .save_settings(AppSettings {
                 default_project_location: Some("/definitely/missing".into()),
-                vagrant_path: None,
-                default_provider: None,
+                ..Default::default()
             })
             .await
             .is_err()
@@ -440,13 +440,22 @@ async fn update_validates_and_settings_round_trip() {
     assert!(
         h.service
             .save_settings(AppSettings {
-                default_project_location: None,
                 vagrant_path: Some(h.path("")),
-                default_provider: None,
+                ..Default::default()
             })
             .await
             .is_err(),
         "a folder is not an executable"
+    );
+    assert!(
+        h.service
+            .save_settings(AppSettings {
+                editor_path: Some(h.path("")),
+                ..Default::default()
+            })
+            .await
+            .is_err(),
+        "a folder is not an editor"
     );
     assert!(
         h.service

@@ -91,6 +91,8 @@ pub fn run() {
             commands::provisioning::get_operation_provisioning,
             commands::provisioning::get_latest_provisioning,
             commands::terminal::open_ssh_terminal,
+            commands::editor::list_editors,
+            commands::editor::open_in_editor,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Vagrant Studio");

@@ -1,14 +1,17 @@
-//! Host platform detection, executable discovery and terminal launching.
+//! Host platform detection, executable discovery, and launching terminals
+//! and editors.
 //!
 //! Everything that differs between Windows and Linux hosts lives behind
 //! [`PlatformAdapter`] so the rest of the backend can stay platform-neutral and
 //! be tested with fakes.
 
 mod discovery;
+mod editor;
 mod host;
 mod terminal;
 
 pub use discovery::{ExecutableSearch, find_executable};
+pub use editor::{DetectedEditor, find_editors, spawn_editor, system_editors};
 pub use host::{Arch, HostInfo, HostOs, is_wsl_kernel_release};
 pub use terminal::{TerminalLaunch, spawn_terminal, system_terminal_launch, terminal_launch};
 

@@ -14,3 +14,9 @@ export interface HostInfo {
   arch: 'x86_64' | 'aarch64' | 'other'
   isWsl: boolean
 }
+
+/** Mirrors `vagrant_studio_platform::DetectedEditor`. */
+export interface DetectedEditor {
+  name: string
+  path: string
+}

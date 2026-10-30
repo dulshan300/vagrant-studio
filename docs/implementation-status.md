@@ -15,7 +15,11 @@ Also done: project page redesign (full-width environment cards, details in an
 Edit dialog, project/environment actions in menus; every action kept), and a
 fix so the editor's CPU and memory section offers the environment's provider
 first and marks settings for other providers as unused (user report,
-2026-10-29).
+2026-10-29). Workspace items chosen before the embedded terminal (user,
+2026-10-30). Open in editor: done in code and automated tests (known editors
+detected by install folder on Windows and `PATH` on Linux; VS Code, Zed and
+Sublime Text found on the Windows dev host; editor choice in Settings, `.exe`
+only on Windows); walkthrough `docs/testing/manual-editor.md` not yet run.
 
 ## Completed phases
 - **Phase 0 — Inspection and planning** (2026-10-28): architecture, roadmap,
@@ -202,8 +206,9 @@ Vagrant prints guest output to stdout; failure summaries of human-output command
 include the last output lines.
 
 ## Next recommended task
-1. Phase 7: embedded PTY terminal (evaluate portable-pty + xterm.js).
-2. Phase 7: external editor, Git status, notes and tasks, shortcuts, log
-   navigation, cross-project port warnings.
+1. Run `docs/testing/manual-editor.md` on Windows.
+2. Phase 7: notes and tasks (tables exist since migration 0001), Git status,
+   cross-project port warnings, shortcuts, log navigation.
+3. Phase 7: embedded PTY terminal (evaluate portable-pty + xterm.js).
 3. Before release: install the CI NSIS installer by hand on Windows 11.
 4. Later: re-enable the Ubuntu/Fedora CI jobs.

@@ -174,6 +174,10 @@ pub struct AppSettings {
     /// Provider pre-selected for new projects and environments.
     #[serde(default)]
     pub default_provider: Option<String>,
+    /// Code editor executable; when unset the first installed known editor
+    /// is used.
+    #[serde(default)]
+    pub editor_path: Option<String>,
 }
 
 const SETTINGS_KEY: &str = "app";
@@ -543,6 +547,20 @@ impl ProjectService {
                 return Err(ValidationError::new(
                     "vagrantPath",
                     "Choose the Vagrant executable (an existing file), or leave empty to search automatically.",
+                )
+                .into());
+            }
+        }
+        if let Some(path) = settings.editor_path.as_deref().map(str::trim) {
+            let p = Path::new(path);
+            // A .cmd or .bat wrapper would run through cmd.exe, which parses
+            // the folder path; only real executables are started.
+            let windows_wrapper =
+                cfg!(windows) && !p.extension().is_some_and(|e| e.eq_ignore_ascii_case("exe"));
+            if !p.is_absolute() || !p.is_file() || windows_wrapper {
+                return Err(ValidationError::new(
+                    "editorPath",
+                    "Choose the editor's program file (on Windows, its .exe), or leave empty to use a detected editor.",
                 )
                 .into());
             }

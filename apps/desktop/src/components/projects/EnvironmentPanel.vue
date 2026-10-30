@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import {
+  Code,
   Ellipsis,
   FileCheck,
   FileCode,
@@ -15,6 +16,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import ProviderSelect from '@/components/providers/ProviderSelect.vue'
@@ -24,6 +26,7 @@ import EnvironmentMachines from '@/components/machines/EnvironmentMachines.vue'
 import OperationStatusBadge from '@/components/operations/OperationStatusBadge.vue'
 import { operationLabel } from '@/lib/operations'
 import { relativeTime } from '@/lib/projects'
+import { editorApi } from '@/services/editor'
 import { errorMessage } from '@/services/errors'
 import { useOperationsStore } from '@/stores/operations'
 import type { Environment } from '@/types/projects'
@@ -50,6 +53,15 @@ async function changeProvider(provider: string | null) {
   actionError.value = null
   try {
     emit('updated', await projectsApi.setEnvironmentProvider(props.environment.id, provider))
+  } catch (e) {
+    actionError.value = errorMessage(e)
+  }
+}
+
+async function openInEditor() {
+  actionError.value = null
+  try {
+    await editorApi.open(props.environment.projectId, props.environment.id)
   } catch (e) {
     actionError.value = errorMessage(e)
   }
@@ -140,6 +152,8 @@ async function run(action: (id: string) => Promise<unknown>) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent>
+            <DropdownMenuItem @select="openInEditor"><Code /> Open in editor</DropdownMenuItem>
+            <DropdownMenuSeparator class="my-1 h-px bg-border" />
             <DropdownMenuItem destructive @select="$emit('remove')">
               <Trash2 /> Remove environment…
             </DropdownMenuItem>
