@@ -222,7 +222,7 @@ use MSVC in CI. Windows has no local MSVC or Rust install.
   tasks, notes and status refreshes. Next step: the app now runs with
   `RUST_LOG=…,sqlx=debug` so the last statement before a crash is logged.
 
-Previously fixed: Fixed during the Phase 4 walkthrough: provisioner failures showed only
+Fixed during the Phase 4 walkthrough: provisioner failures showed only
 Vagrant's generic "SSH command responded with a non-zero exit status" text, because
 Vagrant prints guest output to stdout; failure summaries of human-output commands now
 include the last output lines.
