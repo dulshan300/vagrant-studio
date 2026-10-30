@@ -4635,6 +4635,7 @@ dependencies = [
  "tracing-subscriber",
  "vagrant-studio-config-model",
  "vagrant-studio-domain",
+ "vagrant-studio-git",
  "vagrant-studio-operation-engine",
  "vagrant-studio-platform",
  "vagrant-studio-project-service",
@@ -4662,6 +4663,19 @@ dependencies = [
  "thiserror 2.0.21",
  "time",
  "uuid",
+]
+
+[[package]]
+name = "vagrant-studio-git"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "vagrant-studio-platform",
+ "vagrant-studio-vagrant-adapter",
 ]
 
 [[package]]

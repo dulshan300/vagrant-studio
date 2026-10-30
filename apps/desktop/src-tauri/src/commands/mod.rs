@@ -2,6 +2,7 @@ pub mod app;
 pub mod boxes;
 pub mod editor;
 pub mod error;
+pub mod git;
 pub mod network;
 pub mod operations;
 pub mod projects;

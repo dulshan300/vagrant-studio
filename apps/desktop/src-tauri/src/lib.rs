@@ -93,6 +93,7 @@ pub fn run() {
             commands::terminal::open_ssh_terminal,
             commands::editor::list_editors,
             commands::editor::open_in_editor,
+            commands::git::get_git_status,
             commands::workspace::list_project_notes,
             commands::workspace::create_project_note,
             commands::workspace::update_project_note,

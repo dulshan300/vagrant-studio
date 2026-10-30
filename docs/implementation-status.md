@@ -26,7 +26,12 @@ Notes and tasks per project: done in code and automated tests (tables from
 migration 0001, now used; plain-text notes; tasks with done state, rename and
 ordering; ownership checked per project; not part of the portable
 `project.json`). Confirmed working on Windows by the user 2026-10-30 (no
-itemized results for `docs/testing/manual-notes-tasks.md`).
+itemized results for `docs/testing/manual-notes-tasks.md`). Git status:
+done in code and automated tests (new crate `crates/git`: read-only
+`git status --porcelain=v2` through the adapter's `Runner`, `core.fsmonitor`
+off, `--no-optional-locks`, counts scoped to the project folder; real-Git
+test passes on Linux and as a Windows binary); badge in the project header;
+walkthrough `docs/testing/manual-git.md` not yet run.
 
 ## Completed phases
 - **Phase 0 — Inspection and planning** (2026-10-28): architecture, roadmap,
@@ -213,7 +218,8 @@ Vagrant prints guest output to stdout; failure summaries of human-output command
 include the last output lines.
 
 ## Next recommended task
-1. Phase 7: Git status, cross-project port warnings, shortcuts, log navigation.
-2. Phase 7: embedded PTY terminal (evaluate portable-pty + xterm.js).
+1. Run `docs/testing/manual-git.md` on Windows.
+2. Phase 7: cross-project port warnings, shortcuts, log navigation.
+3. Phase 7: embedded PTY terminal (evaluate portable-pty + xterm.js).
 3. Before release: install the CI NSIS installer by hand on Windows 11.
 4. Later: re-enable the Ubuntu/Fedora CI jobs.

@@ -48,6 +48,7 @@ Vagrant owns.
 | `vagrant-adapter` | `Runner` trait + `ProcessRunner` (process-wrap: Job Object / process group, streaming, timeout, cancel), typed `VagrantCommand` → argv, `--machine-readable` parsers (fixture-tested), Vagrant discovery/version, host readiness checks | platform, tokio, process-wrap | build shell strings |
 | `operation-engine` | `OperationEngine`: operation records, redacted log files, `EventSink` events, cancellation, crash recovery, status snapshots (Phase 3); per-environment scheduling and conflicts (Phase 4) | domain, vagrant-adapter, project-store | depend on Tauri directly |
 | `provider-registry` | `Registry` of `ProviderAdapter`s (VirtualBox, VMware Desktop, Docker), capability flags, support level, prerequisite findings, VirtualBox/Vagrant version table; non-process host facts (TCP port, file existence, hypervisor bit) behind `HostProbe` | platform, vagrant-adapter | promise capabilities that detection didn't confirm |
+| `git` | Read-only `git status --porcelain=v2` of a folder through the adapter's `Runner` (`core.fsmonitor` off, `--no-optional-locks`), parsed into branch and change counts | platform, vagrant-adapter | change a repository or run repository-configured programs |
 | `config-model` | Supported-subset Vagrantfile model, recognizer ("can this be edited visually"), validation, generator with checksum header (docs/vagrantfile-editor.md); no I/O. Backups and atomic saves are in `project-service` | serde, sha2 | rewrite user Ruby it doesn't understand |
 | `src-tauri` (app) | Tauri commands, event bridge (`EventSink` impl), state wiring, tracing setup, capabilities | all crates | contain business logic |
 
@@ -55,7 +56,7 @@ Crates are created **when the phase that needs them starts** (see the
 roadmap), so the workspace never holds empty scaffolding. Present so far:
 `platform` (Phase 1); `domain`, `project-store` and `project-service`
 (Phase 2); `vagrant-adapter` and `operation-engine` (Phase 3); `config-model`
-(Phase 5); `provider-registry` (Phase 6).
+(Phase 5); `provider-registry` (Phase 6); `git` (Phase 7).
 
 Every trait that touches the outside world (`VagrantExecutor`,
 `PlatformAdapter`, `EventSink`) has a fake implementation for tests.

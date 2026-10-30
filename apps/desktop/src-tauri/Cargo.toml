@@ -26,6 +26,7 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 vagrant-studio-config-model.workspace = true
 vagrant-studio-domain.workspace = true
+vagrant-studio-git.workspace = true
 vagrant-studio-operation-engine.workspace = true
 vagrant-studio-platform.workspace = true
 vagrant-studio-project-service.workspace = true

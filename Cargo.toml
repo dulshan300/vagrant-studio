@@ -29,6 +29,7 @@ process-wrap = { version = "10", default-features = false, features = ["tokio1",
 
 vagrant-studio-config-model = { path = "crates/config-model" }
 vagrant-studio-domain = { path = "crates/domain" }
+vagrant-studio-git = { path = "crates/git" }
 vagrant-studio-operation-engine = { path = "crates/operation-engine" }
 vagrant-studio-platform = { path = "crates/platform" }
 vagrant-studio-project-service = { path = "crates/project-service" }

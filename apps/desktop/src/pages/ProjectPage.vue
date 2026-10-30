@@ -11,8 +11,8 @@ import {
   FileJson,
   Folder,
   FolderOpen,
-  GitBranch,
   Layers,
+  Link,
   Pencil,
   Plus,
   Star,
@@ -21,6 +21,7 @@ import {
 import EmptyState from '@/components/layout/EmptyState.vue'
 import AddEnvironmentDialog from '@/components/projects/AddEnvironmentDialog.vue'
 import EditProjectDialog from '@/components/projects/EditProjectDialog.vue'
+import GitStatusBadge from '@/components/projects/GitStatusBadge.vue'
 import EnvironmentPanel from '@/components/projects/EnvironmentPanel.vue'
 import DeleteProjectDialog from '@/components/projects/DeleteProjectDialog.vue'
 import PortableMetadataDialog from '@/components/projects/PortableMetadataDialog.vue'
@@ -147,12 +148,13 @@ async function removeEnvironment(id: string, name: string) {
             <Folder class="size-3.5 shrink-0" aria-hidden="true" />
             <code class="truncate font-mono">{{ project.rootPath }}</code>
           </span>
+          <GitStatusBadge :project-id="project.id" />
           <span
             v-if="project.repositoryUrl"
             class="flex min-w-0 items-center gap-1.5"
             :title="project.repositoryUrl"
           >
-            <GitBranch class="size-3.5 shrink-0" aria-hidden="true" />
+            <Link class="size-3.5 shrink-0" aria-hidden="true" />
             <span class="truncate">{{ project.repositoryUrl }}</span>
           </span>
           <span
