@@ -978,3 +978,23 @@ async fn notes_and_tasks_are_validated_and_stay_with_their_project() {
     assert_eq!(order, ["Open port", "Install box"]);
     assert!(h.service.create_task(ProjectId::new(), "t").await.is_err());
 }
+
+#[tokio::test]
+async fn gitignore_is_added_once_and_never_overwritten() {
+    let h = Harness::new().await;
+    let details = h
+        .service
+        .create(create_req(h.path(""), None))
+        .await
+        .unwrap();
+    let path = Path::new(&details.project.root_path).join(".gitignore");
+    assert!(h.service.add_gitignore(details.project.id).await.unwrap());
+    let written = fs::read_to_string(&path).unwrap();
+    assert!(written.lines().any(|l| l == ".vagrant/"));
+    assert_eq!(written, GITIGNORE);
+
+    fs::write(&path, "mine\n").unwrap();
+    assert!(!h.service.add_gitignore(details.project.id).await.unwrap());
+    assert_eq!(fs::read_to_string(&path).unwrap(), "mine\n");
+    assert!(h.service.add_gitignore(ProjectId::new()).await.is_err());
+}

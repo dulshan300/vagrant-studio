@@ -1,6 +1,6 @@
 [package]
 name = "vagrant-studio-git"
-description = "Read-only Git status of project folders for Vagrant Studio"
+description = "Git status of project folders, and repository creation, for Vagrant Studio"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

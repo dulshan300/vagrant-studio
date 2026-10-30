@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, nextTick, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import {
   Archive,
   ArchiveRestore,
@@ -21,6 +21,7 @@ import {
 import EmptyState from '@/components/layout/EmptyState.vue'
 import AddEnvironmentDialog from '@/components/projects/AddEnvironmentDialog.vue'
 import EditProjectDialog from '@/components/projects/EditProjectDialog.vue'
+import GitPanel from '@/components/projects/GitPanel.vue'
 import GitStatusBadge from '@/components/projects/GitStatusBadge.vue'
 import EnvironmentPanel from '@/components/projects/EnvironmentPanel.vue'
 import DeleteProjectDialog from '@/components/projects/DeleteProjectDialog.vue'
@@ -39,12 +40,15 @@ import {
 import { relativeTime } from '@/lib/projects'
 import { cn } from '@/lib/utils'
 import { editorApi } from '@/services/editor'
+import { gitApi } from '@/services/git'
 import { errorMessage } from '@/services/errors'
 import { projectsApi } from '@/services/projects'
 import { useProjectsStore } from '@/stores/projects'
+import type { GitStatus } from '@/types/git'
 import type { Project, ProjectDetails } from '@/types/projects'
 
 const route = useRoute()
+const router = useRouter()
 const store = useProjectsStore()
 
 const details = ref<ProjectDetails | null>(null)
@@ -69,6 +73,40 @@ async function load(id: string) {
 }
 
 watch(() => route.params.id as string, load, { immediate: true })
+
+// Git status is shared by the header badge and the version-control panel.
+const gitStatus = ref<GitStatus | null>(null)
+const gitLoading = ref(false)
+const gitPanel = ref<HTMLElement | null>(null)
+
+async function loadGit() {
+  const id = route.params.id as string
+  gitLoading.value = true
+  try {
+    gitStatus.value = await gitApi.status(id)
+  } catch (e) {
+    gitStatus.value = { state: 'error', message: errorMessage(e) }
+  } finally {
+    gitLoading.value = false
+  }
+}
+watch(() => route.params.id as string, loadGit, { immediate: true })
+
+async function showGitPanel() {
+  await nextTick()
+  gitPanel.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+// Set by the New project dialog when creating the repository failed.
+watch(
+  () => route.query.gitError,
+  (message) => {
+    if (typeof message !== 'string') return
+    actionError.value = `The project was created, but Git wasn't initialized: ${message}`
+    void router.replace({ query: {} })
+  },
+  { immediate: true },
+)
 
 function saved(updated: Project) {
   details.value = { ...details.value!, project: updated }
@@ -148,7 +186,7 @@ async function removeEnvironment(id: string, name: string) {
             <Folder class="size-3.5 shrink-0" aria-hidden="true" />
             <code class="truncate font-mono">{{ project.rootPath }}</code>
           </span>
-          <GitStatusBadge :project-id="project.id" />
+          <GitStatusBadge :status="gitStatus" :loading="gitLoading" @open="showGitPanel" />
           <span
             v-if="project.repositoryUrl"
             class="flex min-w-0 items-center gap-1.5"
@@ -266,7 +304,18 @@ async function removeEnvironment(id: string, name: string) {
       </Card>
     </section>
 
-    <div class="mt-6 grid items-start gap-4 lg:grid-cols-2">
+    <div ref="gitPanel" class="mt-6 scroll-mt-4">
+      <GitPanel
+        :project-id="project.id"
+        :project-root="project.rootPath"
+        :status="gitStatus"
+        :loading="gitLoading"
+        @update="gitStatus = $event"
+        @refresh="loadGit"
+      />
+    </div>
+
+    <div class="mt-4 grid items-start gap-4 lg:grid-cols-2">
       <ProjectTasks :project-id="project.id" />
       <ProjectNotes :project-id="project.id" />
     </div>

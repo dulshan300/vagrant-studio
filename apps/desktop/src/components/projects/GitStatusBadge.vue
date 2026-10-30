@@ -1,43 +1,24 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import { CircleAlert, GitBranch, LoaderCircle } from '@lucide/vue'
 import { branchLabel, changeCount, changeSummary } from '@/lib/git'
-import { hasBackend } from '@/services/app'
-import { errorMessage } from '@/services/errors'
-import { gitApi } from '@/services/git'
 import type { GitStatus } from '@/types/git'
 
-const props = defineProps<{ projectId: string }>()
+const props = defineProps<{ status: GitStatus | null; loading: boolean }>()
+defineEmits<{ open: [] }>()
 
-const status = ref<GitStatus | null>(null)
-const loading = ref(false)
-
-async function load() {
-  if (!hasBackend()) return
-  loading.value = true
-  try {
-    status.value = await gitApi.status(props.projectId)
-  } catch (e) {
-    status.value = { state: 'error', message: errorMessage(e) }
-  } finally {
-    loading.value = false
-  }
-}
-watch(() => props.projectId, load, { immediate: true })
-
-const repo = computed(() => (status.value?.state === 'repository' ? status.value : null))
+const repo = computed(() => (props.status?.state === 'repository' ? props.status : null))
 const tooltip = computed(() => {
   const s = repo.value
   if (!s) return ''
-  const lines = [
+  return [
     `Branch: ${branchLabel(s)}${s.commit && s.branch ? ` (${s.commit})` : ''}`,
     s.upstream
       ? `Upstream: ${s.upstream}, ${s.ahead ?? 0} ahead, ${s.behind ?? 0} behind`
       : 'No upstream branch',
     `In this folder: ${changeSummary(s)}`,
-    'Click to check again.',
-  ]
-  return lines.join('\n')
+    'Click to open version control.',
+  ].join('\n')
 })
 </script>
 
@@ -48,8 +29,8 @@ const tooltip = computed(() => {
     type="button"
     class="flex min-w-0 items-center gap-1.5 hover:text-foreground"
     :title="tooltip"
-    :aria-label="`Git: ${branchLabel(repo)}, ${changeSummary(repo)}. Check again`"
-    @click="load"
+    :aria-label="`Git: ${branchLabel(repo)}, ${changeSummary(repo)}. Open version control`"
+    @click="$emit('open')"
   >
     <LoaderCircle v-if="loading" class="size-3.5 shrink-0 animate-spin" aria-hidden="true" />
     <GitBranch v-else class="size-3.5 shrink-0" aria-hidden="true" />

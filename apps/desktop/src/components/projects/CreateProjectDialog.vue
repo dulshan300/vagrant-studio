@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button'
 import ProviderPicker from '@/components/providers/ProviderPicker.vue'
 import { useFormErrors } from '@/composables/useFormErrors'
 import { useProviderChoices } from '@/composables/useProviderChoices'
+import { errorMessage } from '@/services/errors'
+import { gitApi } from '@/services/git'
 import { settingsApi } from '@/services/projects'
 import { useProjectsStore } from '@/stores/projects'
 
@@ -26,6 +28,8 @@ const tags = ref<string[]>([])
 const templateId = ref<string>('')
 const provider = ref<string | null>(null)
 const busy = ref(false)
+const gitInstalled = ref(false)
+const initGit = ref(true)
 const providers = useProviderChoices()
 
 // Follow the default (settings, then first ready provider) until the user picks one.
@@ -59,6 +63,8 @@ watch(open, async (isOpen) => {
   providerTouched = false
   provider.value = providers.defaultProvider.value
   try {
+    gitInstalled.value = await gitApi.installed().catch(() => false)
+    initGit.value = gitInstalled.value
     await store.loadTemplates()
     location.value ||= (await settingsApi.get()).defaultProjectLocation ?? ''
   } catch (e) {
@@ -78,8 +84,20 @@ async function submit() {
       templateId: templateId.value || null,
       provider: templateId.value ? provider.value : null,
     })
+    let gitError: string | undefined
+    if (initGit.value && gitInstalled.value) {
+      try {
+        await gitApi.init(details.project.id)
+      } catch (e) {
+        gitError = errorMessage(e)
+      }
+    }
     open.value = false
-    await router.push({ name: 'project', params: { id: details.project.id } })
+    await router.push({
+      name: 'project',
+      params: { id: details.project.id },
+      query: gitError ? { gitError } : {},
+    })
   } catch (e) {
     errors.set(e)
   } finally {
@@ -179,6 +197,20 @@ async function submit() {
           <TagInput id="cp-tags" v-model="tags" :suggestions="store.tags" />
         </FormField>
       </div>
+
+      <label class="flex items-start gap-3 text-sm" :class="!gitInstalled && 'text-muted'">
+        <input v-model="initGit" type="checkbox" class="mt-1" :disabled="!gitInstalled" />
+        <span>
+          Initialize a Git repository
+          <span class="block text-xs text-muted">
+            {{
+              gitInstalled
+                ? 'Adds a .gitignore that leaves out .vagrant/ (machine state and SSH keys), logs and boxes. Nothing is committed.'
+                : "Git wasn't found on this computer."
+            }}
+          </span>
+        </span>
+      </label>
 
       <p v-if="errors.general.value" class="text-sm text-status-failed" role="alert">
         {{ errors.general.value }}

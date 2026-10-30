@@ -30,8 +30,16 @@ itemized results for `docs/testing/manual-notes-tasks.md`). Git status:
 done in code and automated tests (new crate `crates/git`: read-only
 `git status --porcelain=v2` through the adapter's `Runner`, `core.fsmonitor`
 off, `--no-optional-locks`, counts scoped to the project folder; real-Git
-test passes on Linux and as a Windows binary); badge in the project header;
-walkthrough `docs/testing/manual-git.md` not yet run.
+test passes on Linux and as a Windows binary); badge in the project header.
+User requests (2026-10-30): Git init on project creation (checkbox, default
+on when Git is found) and an Initialize Git action for existing projects
+(adds Vagrant Studio's `.gitignore` unless one exists; refused inside an
+existing repository; no commit); a per-project Version control panel
+(changed files with stage/unstage, commit with the user's identity and hooks,
+recent history; no push/pull or discard). Real-Git tests cover init, literal
+pathspecs, unstage before and after the first commit, commit and log, on
+Linux and as a Windows binary; walkthrough `docs/testing/manual-git.md` not
+yet run.
 
 ## Completed phases
 - **Phase 0 — Inspection and planning** (2026-10-28): architecture, roadmap,

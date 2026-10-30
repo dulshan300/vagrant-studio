@@ -10,6 +10,7 @@
 //! * Vagrantfile saves check for changes on disk, keep a backup in the app
 //!   data folder and replace the file atomically (`vagrantfile.rs`).
 
+mod gitignore;
 mod inspect;
 pub mod templates;
 mod vagrantfile;
@@ -31,6 +32,7 @@ use vagrant_studio_domain::{
 };
 use vagrant_studio_project_store::{ProjectFilter, ProjectUpdate, Store, StoreError};
 
+pub use gitignore::GITIGNORE;
 pub use inspect::{DetectedEnvironment, FolderInspection};
 pub use templates::Template;
 pub use vagrantfile::{
