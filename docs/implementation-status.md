@@ -298,7 +298,8 @@ use MSVC in CI. Windows has no local MSVC or Rust install.
   is not installed" for every box stored under an architecture folder. Vagrant
   2.4.9 compares the `--architecture` string with symbols in
   `lib/vagrant/action/builtin/box_remove.rb`, so the app no longer sends that
-  flag. Found by the user removing an exported box. A version with several
+  flag. Found by the user removing an exported box; the same removal then
+  succeeded through the app on Windows. A version with several
   architectures can't be removed through the app: Vagrant refuses.
 - **Open, not reproduced (2026-10-30):** a Windows build (`c1f06ed`) exited
   after the user opened a project page, printing `thread
