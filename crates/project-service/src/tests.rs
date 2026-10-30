@@ -425,6 +425,7 @@ async fn update_validates_and_settings_round_trip() {
         vagrant_path: None,
         default_provider: Some("vmware_desktop".into()),
         editor_path: None,
+        ssh_terminal: SshTerminal::External,
     };
     h.service.save_settings(settings.clone()).await.unwrap();
     assert_eq!(h.service.settings().await.unwrap(), settings);

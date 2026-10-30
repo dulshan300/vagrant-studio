@@ -18,6 +18,7 @@ import { isThemePreference, type ThemePreference } from '@/app/theme'
 import { useAppStore } from '@/stores/app'
 import { useSettingsStore } from '@/stores/settings'
 import type { DetectedEditor } from '@/types/app'
+import type { SshTerminal } from '@/types/projects'
 
 const settings = useSettingsStore()
 const app = useAppStore()
@@ -33,6 +34,8 @@ const editors = ref<DetectedEditor[]>([])
 const editorChoice = ref('')
 const customEditor = ref('')
 const savedEditorPath = ref<string | null>(null)
+const sshTerminal = ref<SshTerminal>('app')
+const savedSshTerminal = ref<SshTerminal>('app')
 const editorPath = computed(() =>
   editorChoice.value === 'custom' ? customEditor.value.trim() || null : editorChoice.value || null,
 )
@@ -61,6 +64,8 @@ onMounted(async () => {
     defaultProvider.value = settings.defaultProvider
     editors.value = await editorApi.list().catch(() => [])
     showEditor(settings.editorPath)
+    savedSshTerminal.value = settings.sshTerminal
+    sshTerminal.value = settings.sshTerminal
   } catch (e) {
     locationErrors.set(e)
   }
@@ -74,6 +79,7 @@ async function saveLocation() {
       vagrantPath: vagrantPath.value.trim() || null,
       defaultProvider: defaultProvider.value,
       editorPath: editorPath.value,
+      sshTerminal: sshTerminal.value,
     })
     savedLocation.value = saved.defaultProjectLocation ?? ''
     location.value = savedLocation.value
@@ -83,6 +89,8 @@ async function saveLocation() {
     defaultProvider.value = saved.defaultProvider
     providers.preferred.value = saved.defaultProvider
     showEditor(saved.editorPath)
+    savedSshTerminal.value = saved.sshTerminal
+    sshTerminal.value = saved.sshTerminal
   } catch (e) {
     locationErrors.set(e)
   }
@@ -204,6 +212,19 @@ function onThemeChange(value: unknown) {
         >
           {{ locationErrors.field.value.editorPath }}
         </p>
+        <label for="settings-ssh" class="mt-4 block text-xs font-medium">SSH opens in</label>
+        <select
+          id="settings-ssh"
+          v-model="sshTerminal"
+          class="rounded-md border bg-surface px-2 py-1.5 text-sm"
+        >
+          <option value="app">The app's terminal panel</option>
+          <option value="external">A new terminal window</option>
+        </select>
+        <p class="text-xs text-muted">
+          Used by the SSH button on running machines. The panel keeps sessions in tabs at the bottom
+          of the window (Ctrl+` shows or hides it).
+        </p>
         <div class="flex justify-end pt-2">
           <Button
             type="submit"
@@ -211,7 +232,8 @@ function onThemeChange(value: unknown) {
               location === savedLocation &&
               vagrantPath === savedVagrantPath &&
               defaultProvider === savedDefaultProvider &&
-              editorPath === savedEditorPath
+              editorPath === savedEditorPath &&
+              sshTerminal === savedSshTerminal
             "
           >
             Save

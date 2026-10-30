@@ -25,13 +25,18 @@ import { relativeTime } from '@/lib/projects'
 import { PROVISION_COMMANDS, provisioningOutcome, type ProvisionCommand } from '@/lib/provisioning'
 import { hasBackend } from '@/services/app'
 import { errorMessage } from '@/services/errors'
+import { settingsApi } from '@/services/projects'
 import { terminalApi } from '@/services/terminal'
 import { useOperationsStore } from '@/stores/operations'
+import { useProjectsStore } from '@/stores/projects'
+import { useTerminalsStore } from '@/stores/terminals'
 import type { EnvironmentStatus, LifecycleAction, Operation } from '@/types/operations'
 import type { Environment } from '@/types/projects'
 
 const props = defineProps<{ environment: Environment; status: EnvironmentStatus }>()
 const operations = useOperationsStore()
+const projects = useProjectsStore()
+const terminals = useTerminalsStore()
 // Provider capabilities (e.g. no suspend for Docker) come from the host checks.
 onMounted(() => {
   if (hasBackend() && !operations.readiness && !operations.readinessLoading)
@@ -105,10 +110,18 @@ function toggleAll() {
   selected.value = allSelected.value ? [] : machines.value.map((m) => m.name)
 }
 
+/** Opens `vagrant ssh` where Settings says: the terminal panel (default) or a new window. */
 async function openSsh(name: string) {
   actionError.value = null
   try {
-    await terminalApi.openSsh(props.environment.id, name)
+    const where = (await settingsApi.get().catch(() => null))?.sshTerminal ?? 'app'
+    if (where === 'external') {
+      await terminalApi.openSsh(props.environment.id, name)
+      return
+    }
+    const project = projects.projects.find((p) => p.id === props.environment.projectId)
+    const context = project ? `${project.name} · ${props.environment.name}` : props.environment.name
+    await terminals.openSsh(props.environment.id, name, context)
   } catch (e) {
     actionError.value = errorMessage(e)
   }
@@ -253,7 +266,7 @@ async function run(action: LifecycleAction, names: string[]) {
               variant="ghost"
               size="icon"
               class="size-7"
-              title="vagrant ssh: open a shell on the machine in a new terminal window"
+              title="vagrant ssh: open a shell on the machine (where it opens is set in Settings)"
               :aria-label="`SSH into ${m.name}`"
               @click="openSsh(m.name)"
             >

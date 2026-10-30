@@ -49,6 +49,7 @@ Vagrant owns.
 | `operation-engine` | `OperationEngine`: operation records, redacted log files, `EventSink` events, cancellation, crash recovery, status snapshots (Phase 3); per-environment scheduling and conflicts (Phase 4) | domain, vagrant-adapter, project-store | depend on Tauri directly |
 | `provider-registry` | `Registry` of `ProviderAdapter`s (VirtualBox, VMware Desktop, Docker), capability flags, support level, prerequisite findings, VirtualBox/Vagrant version table; non-process host facts (TCP port, file existence, hypervisor bit) behind `HostProbe` | platform, vagrant-adapter | promise capabilities that detection didn't confirm |
 | `git` | `git status --porcelain=v2` and `git log` of a folder (`core.fsmonitor` off, `--no-optional-locks`), and on the user's request `init`, `add`, `restore --staged`/`rm --cached` and `commit`, all through the adapter's `Runner`; paths are literal root-relative pathspecs taken from Git's own status | platform, vagrant-adapter | push, pull, discard changes, rewrite history, or accept paths the status didn't report |
+| `terminal` | Interactive programs in a pseudo-terminal (`portable-pty`: ConPTY / Unix PTY) for the terminal panel: spawn an argv in a folder, stream text, input, resize, close (ADR-0009) | portable-pty | run anything but what the app crate passes in, store output |
 | `config-model` | Supported-subset Vagrantfile model, recognizer ("can this be edited visually"), validation, generator with checksum header (docs/vagrantfile-editor.md); no I/O. Backups and atomic saves are in `project-service` | serde, sha2 | rewrite user Ruby it doesn't understand |
 | `src-tauri` (app) | Tauri commands, event bridge (`EventSink` impl), state wiring, tracing setup, capabilities | all crates | contain business logic |
 
@@ -56,7 +57,7 @@ Crates are created **when the phase that needs them starts** (see the
 roadmap), so the workspace never holds empty scaffolding. Present so far:
 `platform` (Phase 1); `domain`, `project-store` and `project-service`
 (Phase 2); `vagrant-adapter` and `operation-engine` (Phase 3); `config-model`
-(Phase 5); `provider-registry` (Phase 6); `git` (Phase 7).
+(Phase 5); `provider-registry` (Phase 6); `git` and `terminal` (Phase 7).
 
 Every trait that touches the outside world (`VagrantExecutor`,
 `PlatformAdapter`, `EventSink`) has a fake implementation for tests.
@@ -73,8 +74,9 @@ Vagrant, VM or WebView.
   vector**. Nothing is interpolated into a shell string. No shell is used
   unless an operation really requires one, such as launching an external
   terminal, and that case is isolated in `platform`. Interactive
-  `vagrant ssh` opens in a terminal window and bypasses the engine
-  (ADR-0008, *Interactive SSH*); an embedded terminal comes later.
+  `vagrant ssh` bypasses the engine: it opens in the app's terminal panel
+  through a pseudo-terminal (`crates/terminal`, ADR-0009) or in a terminal
+  window (ADR-0008, *Interactive SSH*).
 - Every invocation has an explicit working directory: the environment root,
   validated as an existing directory that contains the Vagrantfile.
 - Read-only queries (`status`, `box list`, `version`, `plugin list`) use

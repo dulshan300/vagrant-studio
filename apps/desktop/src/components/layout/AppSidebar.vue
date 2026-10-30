@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { Boxes } from '@lucide/vue'
+import { Boxes, SquareTerminal } from '@lucide/vue'
 import { NAV_ITEMS } from '@/app/navigation'
+import { useTerminalsStore } from '@/stores/terminals'
+
+const terminals = useTerminalsStore()
 
 const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform)
 const modifier = isMac ? '⌘' : 'Ctrl+'
@@ -39,5 +42,19 @@ const activeClass = 'bg-surface-muted !text-foreground font-medium'
         </li>
       </ul>
     </nav>
+
+    <div v-if="terminals.tabs.length && !terminals.panelOpen" class="border-t px-3 py-2">
+      <button
+        class="flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-muted hover:bg-surface-muted hover:text-foreground"
+        title="Show the terminal panel (Ctrl+`)"
+        @click="terminals.panelOpen = true"
+      >
+        <SquareTerminal class="size-4 shrink-0" aria-hidden="true" />
+        <span class="flex-1 truncate text-left">Terminals</span>
+        <span class="text-xs tabular-nums"
+          >{{ terminals.running }}/{{ terminals.tabs.length }}</span
+        >
+      </button>
+    </div>
   </aside>
 </template>

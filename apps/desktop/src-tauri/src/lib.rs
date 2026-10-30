@@ -7,6 +7,7 @@ use tracing_subscriber::EnvFilter;
 use vagrant_studio_operation_engine::{OperationEngine, logs_dir};
 use vagrant_studio_project_service::ProjectService;
 use vagrant_studio_project_store::Store;
+use vagrant_studio_terminal::Terminals;
 use vagrant_studio_vagrant_adapter::ProcessRunner;
 
 const DATABASE_FILE: &str = "vagrant-studio.db";
@@ -38,6 +39,7 @@ pub fn run() {
             tauri::async_runtime::block_on(engine.recover())?;
             app.manage(ProjectService::new(store).with_backups_dir(data_dir.join(BACKUPS_DIR)));
             app.manage(engine);
+            app.manage(Terminals::new());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -85,6 +87,10 @@ pub fn run() {
             commands::operations::get_environment_status,
             commands::operations::list_environment_statuses,
             commands::operations::list_operations,
+            commands::terminal::start_ssh_session,
+            commands::terminal::terminal_write,
+            commands::terminal::terminal_resize,
+            commands::terminal::terminal_close,
             commands::operations::reveal_operation_log,
             commands::operations::open_operation_logs_folder,
             commands::operations::get_operation,
@@ -113,8 +119,15 @@ pub fn run() {
             commands::workspace::delete_project_task,
             commands::workspace::reorder_project_tasks,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running Vagrant Studio");
+        .build(tauri::generate_context!())
+        .expect("error while building Vagrant Studio")
+        .run(|app, event| {
+            // Terminal sessions end with the app; ConPTY would otherwise
+            // leave `vagrant ssh` running without a window.
+            if let tauri::RunEvent::Exit = event {
+                app.state::<Terminals>().close_all();
+            }
+        });
 }
 
 /// Logs to stderr; `RUST_LOG` overrides the default filter.

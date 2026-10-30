@@ -59,7 +59,17 @@ matches and Enter/Shift+Enter stepping, All / Problems / stderr filter,
 next-problem jump (stderr plus error/warning wording, since Vagrant prints
 guest stderr on stdout), copy, and "show log file" in the file manager;
 "Logs folder" on the Operations page. Walkthrough `docs/testing/manual-logs.md`
-not yet run.
+not yet run. Embedded terminal: done in code and automated tests (ADR-0009).
+New crate `crates/terminal` (portable-pty 0.9: ConPTY on Windows, Unix PTY on
+Linux; tests with real pseudo-terminals pass on Linux and as a Windows binary,
+including closing a running program). `vagrant ssh` opens in a terminal panel
+docked under the page (xterm.js 6.0 + fit addon, loaded on demand; tabs,
+resizable, survives navigation, Ctrl+` hides it). Settings → "SSH opens in"
+keeps the external window as an option. Found while testing: ConPTY asks for
+the cursor position at start and waits for the reply, so early input is
+queued until the session id is known. Walkthrough
+`docs/testing/manual-terminal.md` not yet run (includes checking that no
+`ruby.exe`/`ssh.exe` survives a closed tab).
 
 ## Completed phases
 - **Phase 0 — Inspection and planning** (2026-10-28): architecture, roadmap,
@@ -247,8 +257,13 @@ use MSVC in CI. Windows has no local MSVC or Rust install.
   every app query against a copy of the user's database (opt-in test
   `crates/project-store/tests/real_db.rs`), opening the project page through
   the WebView (8 visits, 5 fresh starts), and a 5-minute scripted session of
-  tasks, notes and status refreshes. Next step: the app now runs with
-  `RUST_LOG=…,sqlx=debug` so the last statement before a crash is logged.
+  tasks, notes and status refreshes. A run with `RUST_LOG=…,sqlx=debug`
+  (2026-10-30) also ended with exit code 5 and no overflow message, 16
+  minutes after start; its last lines were successful reads (environment
+  statuses, projects, tags). sqlx logs a statement only after it completes,
+  so a statement that overflows wouldn't appear; it isn't known whether
+  that window was closed by hand. Next step: ask the user whether exit code
+  5 matched a manual close, and log statement starts if it didn't.
 
 Fixed during the Phase 4 walkthrough: provisioner failures showed only
 Vagrant's generic "SSH command responded with a non-zero exit status" text, because
@@ -256,8 +271,9 @@ Vagrant prints guest output to stdout; failure summaries of human-output command
 include the last output lines.
 
 ## Next recommended task
-1. Run `docs/testing/manual-ports.md` and `docs/testing/manual-logs.md` on Windows.
-2. Phase 7: embedded PTY terminal (evaluate portable-pty + xterm.js); the user
-   chose it after log navigation (2026-10-30).
+1. Run `docs/testing/manual-terminal.md`, `docs/testing/manual-logs.md` and
+   `docs/testing/manual-ports.md` on Windows; Phase 7 is complete in code once
+   they pass.
+2. Phase 8: choose the next provider.
 3. Before release: install the CI NSIS installer by hand on Windows 11.
 4. Later: re-enable the Ubuntu/Fedora CI jobs.

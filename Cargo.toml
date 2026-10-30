@@ -35,6 +35,7 @@ vagrant-studio-platform = { path = "crates/platform" }
 vagrant-studio-project-service = { path = "crates/project-service" }
 vagrant-studio-project-store = { path = "crates/project-store" }
 vagrant-studio-provider-registry = { path = "crates/provider-registry" }
+vagrant-studio-terminal = { path = "crates/terminal" }
 vagrant-studio-vagrant-adapter = { path = "crates/vagrant-adapter" }
 
 [workspace.lints.rust]

@@ -32,6 +32,7 @@ vagrant-studio-platform.workspace = true
 vagrant-studio-project-service.workspace = true
 vagrant-studio-project-store.workspace = true
 vagrant-studio-provider-registry.workspace = true
+vagrant-studio-terminal.workspace = true
 vagrant-studio-vagrant-adapter.workspace = true
 
 [lints]

@@ -132,7 +132,12 @@ export interface AppSettings {
   defaultProvider: string | null
   /** Code editor executable; null uses the first detected editor. */
   editorPath: string | null
+  /** Where SSH opens: the app's terminal panel or a new terminal window. */
+  sshTerminal: SshTerminal
 }
+
+/** Mirrors `SshTerminal` in crates/project-service. */
+export type SshTerminal = 'app' | 'external'
 
 /** Error shape returned by every backend command (src-tauri/src/commands/error.rs). */
 export interface CommandError {

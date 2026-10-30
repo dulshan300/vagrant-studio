@@ -182,6 +182,20 @@ pub struct AppSettings {
     /// is used.
     #[serde(default)]
     pub editor_path: Option<String>,
+    /// Where SSH sessions open.
+    #[serde(default)]
+    pub ssh_terminal: SshTerminal,
+}
+
+/// Where `vagrant ssh` opens.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SshTerminal {
+    /// The app's terminal panel.
+    #[default]
+    App,
+    /// A new window of the system terminal.
+    External,
 }
 
 const SETTINGS_KEY: &str = "app";
