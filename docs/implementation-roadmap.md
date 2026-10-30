@@ -79,7 +79,7 @@ Acceptance: app launches on target OSes; UI navigable; CI runs tests; no new war
 
 ## Phase 7 — Developer workspace
 - [ ] SSH: external terminal launch first, then an embedded PTY terminal (evaluate portable-pty + xterm.js). External terminal done in code and automated tests (Windows Terminal, console fallback, Linux terminals untested); SSH confirmed working on Windows by the user 2026-10-29; embedded terminal not started
-- [ ] External editor integration, Git status, notes and tasks, project shortcuts, log navigation, cross-project port warnings. Done in code: open in editor (walkthrough `docs/testing/manual-editor.md` not yet run)
+- [ ] External editor integration, Git status, notes and tasks, project shortcuts, log navigation, cross-project port warnings. Done: open in editor (confirmed on Windows by the user 2026-10-30)
 
 ## Phase 8 — Additional providers and advanced capabilities
 - [ ] Choose the next provider (libvirt on Fedora is the likely first); adapters, prerequisites, diagnostics, tests
