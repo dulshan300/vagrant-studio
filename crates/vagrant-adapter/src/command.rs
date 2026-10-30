@@ -226,7 +226,7 @@ pub enum VagrantCommand {
         provider: String,
         architecture: Option<String>,
     },
-    /// Removes exactly one installed box. Always `--force`: the UI asks for
+    /// Removes one installed box. Always `--force`: the UI asks for
     /// confirmation first and shows which machines use the box.
     BoxRemove(BoxRef),
     SnapshotList {
@@ -311,7 +311,10 @@ impl VagrantCommand {
                 ];
                 push_option(&mut args, "--provider", Some(&b.provider));
                 push_option(&mut args, "--box-version", Some(&b.version));
-                push_option(&mut args, "--architecture", b.architecture.as_deref());
+                // No `--architecture`: Vagrant 2.4.9 compares its value, a
+                // string, with symbols from the box store, so it never
+                // matches. Without it Vagrant removes the only architecture,
+                // and refuses when a version has several.
                 args.push(b.name.clone());
                 args
             }
@@ -579,8 +582,6 @@ mod tests {
                 "vmware_desktop",
                 "--box-version",
                 "9.6.20250522",
-                "--architecture",
-                "amd64",
                 "almalinux/9"
             ]
         );
