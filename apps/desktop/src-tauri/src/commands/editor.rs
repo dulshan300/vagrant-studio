@@ -47,6 +47,7 @@ pub async fn open_in_editor(
     project_id: ProjectId,
     environment_id: Option<EnvironmentId>,
 ) -> CommandResult<String> {
+    tracing::debug!(%project_id, ?environment_id, "open in editor requested");
     let folder = match environment_id {
         Some(id) => {
             let (project, env) = projects.environment(id).await?;
@@ -66,7 +67,9 @@ pub async fn open_in_editor(
     }
     let editor = chosen_editor(&projects).await?;
     spawn_editor(&editor.path, Path::new(&folder)).map_err(|e| {
+        tracing::warn!(editor = %editor.path.display(), %folder, error = %e, "editor failed to start");
         CommandError::unavailable(format!("{} couldn't be started: {e}", editor.name))
     })?;
+    tracing::info!(editor = %editor.path.display(), %folder, "opened folder in editor");
     Ok(editor.name)
 }

@@ -106,6 +106,10 @@ pub fn spawn_editor(program: &Path, folder: &Path) -> io::Result<()> {
     let mut command = Command::new(program);
     command
         .arg(folder)
+        // Set when Vagrant Studio was started from a VS Code terminal or
+        // extension; it makes Electron editors (VS Code, Cursor, VSCodium)
+        // run as plain Node.js and exit without opening a window.
+        .env_remove("ELECTRON_RUN_AS_NODE")
         .current_dir(folder)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
