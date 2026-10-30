@@ -212,7 +212,17 @@ Windows `.exe` with the frontend embedded. This is a GNU-toolchain check only; r
 use MSVC in CI. Windows has no local MSVC or Rust install.
 
 ## Known bugs
-None open. Fixed during the Phase 4 walkthrough: provisioner failures showed only
+- **Open, not reproduced (2026-10-30):** a Windows build (`c1f06ed`) exited
+  after the user opened a project page, printing `thread
+  'sqlx-sqlite-worker-0' has overflowed its stack`; two earlier windows ended
+  with the same exit code 5 without the message. Not reproduced by: replaying
+  every app query against a copy of the user's database (opt-in test
+  `crates/project-store/tests/real_db.rs`), opening the project page through
+  the WebView (8 visits, 5 fresh starts), and a 5-minute scripted session of
+  tasks, notes and status refreshes. Next step: the app now runs with
+  `RUST_LOG=…,sqlx=debug` so the last statement before a crash is logged.
+
+Previously fixed: Fixed during the Phase 4 walkthrough: provisioner failures showed only
 Vagrant's generic "SSH command responded with a non-zero exit status" text, because
 Vagrant prints guest output to stdout; failure summaries of human-output commands now
 include the last output lines.
