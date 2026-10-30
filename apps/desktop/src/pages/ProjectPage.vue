@@ -41,10 +41,12 @@ import { relativeTime } from '@/lib/projects'
 import { cn } from '@/lib/utils'
 import { editorApi } from '@/services/editor'
 import { gitApi } from '@/services/git'
+import { networkApi } from '@/services/network'
 import { errorMessage } from '@/services/errors'
 import { projectsApi } from '@/services/projects'
 import { useProjectsStore } from '@/stores/projects'
 import type { GitStatus } from '@/types/git'
+import type { PortUse } from '@/types/vagrantfile'
 import type { Project, ProjectDetails } from '@/types/projects'
 
 const route = useRoute()
@@ -61,7 +63,14 @@ const showEdit = ref(false)
 
 const project = computed(() => details.value?.project ?? null)
 
+/** Forwarded ports of every environment, for cross-project port warnings. */
+const forwardedPorts = ref<PortUse[]>([])
+
 async function load(id: string) {
+  void networkApi
+    .listForwardedPorts()
+    .then((r) => (forwardedPorts.value = r.ports))
+    .catch(() => undefined)
   try {
     details.value = await projectsApi.get(id)
     loadError.value = null
@@ -289,6 +298,7 @@ async function removeEnvironment(id: string, name: string) {
           v-for="env in details.environments"
           :key="env.id"
           :environment="env"
+          :forwarded-ports="forwardedPorts"
           @remove="removeEnvironment(env.id, env.name)"
           @updated="load(project.id)"
         />

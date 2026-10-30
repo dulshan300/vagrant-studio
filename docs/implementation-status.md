@@ -40,7 +40,13 @@ recent history; no push/pull or discard). Real-Git tests cover init, literal
 pathspecs, unstage before and after the first commit, commit and log, on
 Linux and as a Windows binary. Walkthrough `docs/testing/manual-git.md`
 passed on Windows (user, 2026-10-30, no itemized results; app log showed
-create with init, commit and history refresh).
+create with init, commit and history refresh). Cross-project port warnings:
+done in code and automated tests (`list_forwarded_ports` reads every
+registered Vagrantfile through the config model; shared ports count for
+every machine; addresses overlap when equal or when either is unset or a
+wildcard); shown on environment cards and next to forwarded ports in the
+Vagrantfile editor (unsaved edits included); walkthrough
+`docs/testing/manual-ports.md` not yet run.
 
 ## Completed phases
 - **Phase 0 — Inspection and planning** (2026-10-28): architecture, roadmap,
@@ -237,7 +243,8 @@ Vagrant prints guest output to stdout; failure summaries of human-output command
 include the last output lines.
 
 ## Next recommended task
-1. Phase 7: cross-project port warnings, shortcuts, log navigation.
-2. Phase 7: embedded PTY terminal (evaluate portable-pty + xterm.js).
+1. Run `docs/testing/manual-ports.md` on Windows.
+2. Phase 7: project shortcuts, log navigation.
+3. Phase 7: embedded PTY terminal (evaluate portable-pty + xterm.js).
 3. Before release: install the CI NSIS installer by hand on Windows 11.
 4. Later: re-enable the Ubuntu/Fedora CI jobs.

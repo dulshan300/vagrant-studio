@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, Plus, Trash2 } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import FormField from '@/components/ui/form/FormField.vue'
 import TextInput from '@/components/ui/form/TextInput.vue'
+import { othersUsing, portOwnerLabel } from '@/lib/ports'
 import {
   PROVIDER_LABELS,
   hostPortKey,
@@ -19,6 +20,7 @@ import type {
   ProviderKind,
   ProvisionRun,
   ShellProvisioner,
+  PortUse,
 } from '@/types/vagrantfile'
 
 const settings = defineModel<MachineSettings>('settings', { required: true })
@@ -37,6 +39,8 @@ const props = defineProps<{
   portsInUse?: Record<string, boolean>
   /** The environment's provider: offered first, and other providers' settings are marked. */
   provider?: string | null
+  /** Forwarded ports of the other registered environments. */
+  otherPorts?: PortUse[]
 }>()
 
 const err = (field: string) => props.errors[`${props.path}.${field}`] ?? null
@@ -56,6 +60,12 @@ const unusedProviders = computed(() =>
 const numberInput = 'w-full rounded-md border bg-surface px-2 py-1.5 text-sm'
 const selectInput = 'rounded-md border bg-surface px-2 py-1.5 text-sm'
 const sectionTitle = 'flex items-center justify-between gap-2 text-sm font-medium'
+
+function sharedWith(p: ForwardedPort): string {
+  return othersUsing(p, props.otherPorts ?? [])
+    .map((o) => portOwnerLabel(o))
+    .join(', ')
+}
 
 function portInUse(p: ForwardedPort): boolean {
   return p.protocol !== 'udp' && !!props.portsInUse?.[hostPortKey(p.hostIp, p.host)]
@@ -373,6 +383,9 @@ function parsePrivileged(value: string): boolean | null {
           role="alert"
         >
           {{ err(`forwardedPorts.${i}.${field}`) }}
+        </p>
+        <p v-if="sharedWith(p)" class="text-xs text-status-transition">
+          Also forwarded by {{ sharedWith(p) }}. Only one of them can be running at a time.
         </p>
         <p v-if="portInUse(p)" class="text-xs text-status-transition">
           Something on this computer already uses host port {{ p.host }}. Unless it is this

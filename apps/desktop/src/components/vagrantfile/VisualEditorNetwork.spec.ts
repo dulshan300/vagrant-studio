@@ -9,6 +9,7 @@ vi.mock('@/services/network', () => ({
   networkApi: {
     checkHostPorts: vi.fn(),
     listBridgedInterfaces: vi.fn(),
+    listForwardedPorts: vi.fn(() => Promise.resolve({ ports: [], unchecked: [] })),
   },
 }))
 
@@ -66,5 +67,44 @@ describe('VisualEditor network settings', () => {
     // Only the TCP entry on 8080; the UDP one isn't checked by Vagrant.
     expect(warnings).toHaveLength(1)
     expect(warnings[0]!.text()).toContain('host port 8080')
+  })
+
+  it('names other environments that forward the same host port', async () => {
+    vi.mocked(networkApi.listBridgedInterfaces).mockResolvedValue([])
+    vi.mocked(networkApi.checkHostPorts).mockResolvedValue([])
+    const use = (environmentId: string, host: number) => ({
+      projectId: 'p2',
+      projectName: 'Shop',
+      environmentId,
+      environmentName: 'default',
+      machine: 'web',
+      hostIp: null,
+      host,
+      guest: 80,
+      protocol: 'tcp' as const,
+    })
+    vi.mocked(networkApi.listForwardedPorts).mockResolvedValue({
+      // The edited environment's own saved ports are ignored.
+      ports: [use('e2', 8080), use('e1', 8443)],
+      unchecked: [],
+    })
+    const model = starterModel(null)
+    model.defaults.forwardedPorts.push(
+      { guest: 80, host: 8080, hostIp: '127.0.0.1', protocol: null },
+      { guest: 443, host: 8443, hostIp: null, protocol: null },
+    )
+    const wrapper = mount(VisualEditor, {
+      props: {
+        modelValue: model,
+        'onUpdate:modelValue': () => undefined,
+        errors: {},
+        environmentId: 'e1',
+      },
+    })
+    await flushPromises()
+    const notes = wrapper.findAll('p').filter((p) => p.text().startsWith('Also forwarded by'))
+    expect(notes.map((n) => n.text())).toEqual([
+      'Also forwarded by Shop · default (web). Only one of them can be running at a time.',
+    ])
   })
 })

@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import {
   Code,
+  TriangleAlert,
   Ellipsis,
   FileCheck,
   FileCode,
@@ -25,13 +26,15 @@ import { projectsApi } from '@/services/projects'
 import EnvironmentMachines from '@/components/machines/EnvironmentMachines.vue'
 import OperationStatusBadge from '@/components/operations/OperationStatusBadge.vue'
 import { operationLabel } from '@/lib/operations'
+import { clashesFor, portOwnerLabel } from '@/lib/ports'
 import { relativeTime } from '@/lib/projects'
 import { editorApi } from '@/services/editor'
 import { errorMessage } from '@/services/errors'
 import { useOperationsStore } from '@/stores/operations'
 import type { Environment } from '@/types/projects'
+import type { PortUse } from '@/types/vagrantfile'
 
-const props = defineProps<{ environment: Environment }>()
+const props = defineProps<{ environment: Environment; forwardedPorts?: PortUse[] }>()
 const emit = defineEmits<{ remove: []; updated: [environment: Environment] }>()
 const providers = useProviderChoices()
 const router = useRouter()
@@ -44,6 +47,7 @@ onMounted(() => {
 })
 
 const status = computed(() => operations.statuses[props.environment.id] ?? null)
+const clashes = computed(() => clashesFor(props.environment.id, props.forwardedPorts ?? []))
 const latest = computed(() => operations.latestFor(props.environment.id))
 // Lifecycle operations refresh status themselves, so Refresh waits for them.
 const pending = computed(() => operations.activeFor(props.environment.id))
@@ -161,6 +165,33 @@ async function run(action: (id: string) => Promise<unknown>) {
         </DropdownMenu>
       </div>
     </header>
+
+    <ul
+      v-if="clashes.length"
+      class="space-y-1 border-b bg-status-transition/10 px-4 py-2 text-xs"
+      aria-label="Host port conflicts"
+    >
+      <li v-for="c in clashes" :key="`${c.protocol}:${c.host}`" class="flex items-start gap-2">
+        <TriangleAlert class="mt-0.5 size-3.5 shrink-0 text-status-transition" aria-hidden="true" />
+        <span>
+          Host port <span class="font-mono">{{ c.host }}</span>
+          <template v-if="c.protocol === 'udp'"> (UDP)</template>
+          ({{ c.machines.join(', ') }}) is also forwarded by
+          <template v-for="(o, i) in c.others" :key="`${o.environmentId}:${o.machine}`">
+            <template v-if="i > 0">, </template>
+            <RouterLink
+              v-if="o.projectId !== environment.projectId"
+              :to="{ name: 'project', params: { id: o.projectId } }"
+              class="font-medium underline-offset-2 hover:underline"
+              >{{ portOwnerLabel(o, environment.projectId) }}</RouterLink
+            >
+            <span v-else class="font-medium">{{
+              portOwnerLabel(o, environment.projectId)
+            }}</span> </template
+          >. Only one of them can be running at a time.
+        </span>
+      </li>
+    </ul>
 
     <p v-if="!environment.vagrantfilePath" class="px-4 py-3 text-xs text-muted">
       No Vagrantfile detected in this folder, so Vagrant commands are disabled. Use Create

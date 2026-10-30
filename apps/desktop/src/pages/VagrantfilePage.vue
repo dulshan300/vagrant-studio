@@ -421,6 +421,7 @@ const tabClass = (active: boolean) =>
           v-model="model"
           :errors="errorMap"
           :provider="environment.defaultProvider"
+          :environment-id="environment.id"
         />
         <div v-else class="max-w-prose space-y-3 text-sm">
           <h2 class="font-medium">The visual editor can't show this Vagrantfile</h2>

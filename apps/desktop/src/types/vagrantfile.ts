@@ -155,3 +155,24 @@ export interface ProvisionerList {
   /** Why provisioners can't be listed; `machines` is then empty. */
   unavailable: string | null
 }
+
+/** Mirrors `commands::network::PortUse`: a host port a machine forwards. */
+export interface PortUse {
+  projectId: string
+  projectName: string
+  environmentId: string
+  environmentName: string
+  machine: string
+  /** null means every address. */
+  hostIp: string | null
+  host: number
+  guest: number
+  protocol: Protocol
+}
+
+/** Mirrors `commands::network::ForwardedPorts`. */
+export interface ForwardedPorts {
+  ports: PortUse[]
+  /** "project · environment" labels whose Vagrantfile couldn't be read. */
+  unchecked: string[]
+}

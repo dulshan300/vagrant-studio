@@ -76,6 +76,7 @@ pub fn run() {
             commands::boxes::remove_box,
             commands::operations::get_host_readiness,
             commands::network::check_host_ports,
+            commands::network::list_forwarded_ports,
             commands::network::list_bridged_interfaces,
             commands::operations::refresh_environment_status,
             commands::operations::validate_environment,

@@ -55,6 +55,26 @@ impl VagrantConfig {
     /// Each machine's provisioners: shared ones first, then its own (Vagrant
     /// 2.4.9 runs them in this order). Without `vm.define` the one machine is
     /// `default`.
+    /// Each machine's forwarded ports: shared ones first, then its own.
+    /// Without `vm.define` the one machine is `default`.
+    pub fn forwarded_ports_by_machine(&self) -> Vec<(String, Vec<ForwardedPort>)> {
+        let ports = |own: &[ForwardedPort]| {
+            self.defaults
+                .forwarded_ports
+                .iter()
+                .chain(own)
+                .cloned()
+                .collect::<Vec<_>>()
+        };
+        if self.machines.is_empty() {
+            return vec![("default".into(), ports(&[]))];
+        }
+        self.machines
+            .iter()
+            .map(|m| (m.name.clone(), ports(&m.settings.forwarded_ports)))
+            .collect()
+    }
+
     pub fn provisioners_by_machine(&self) -> Vec<MachineProvisioners> {
         let entries = |own: &[ShellProvisioner]| {
             let shared = self.defaults.provisioners.iter().map(|p| (p, true));

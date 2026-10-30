@@ -581,3 +581,25 @@ fn machines_run_shared_provisioners_first() {
     assert_eq!(single[0].machine, "default");
     assert_eq!(single[0].provisioners.len(), 1);
 }
+
+#[test]
+fn machines_get_shared_forwarded_ports_too() {
+    let mut m = multi_model();
+    m.defaults.forwarded_ports.push(ForwardedPort {
+        guest: 9000,
+        host: 9000,
+        host_ip: None,
+        protocol: None,
+    });
+    let by_machine = m.forwarded_ports_by_machine();
+    assert_eq!(by_machine.len(), m.machines.len());
+    for (name, ports) in &by_machine {
+        assert_eq!(ports[0].host, 9000, "{name}");
+    }
+    let single = VagrantConfig {
+        defaults: m.defaults.clone(),
+        machines: vec![],
+    };
+    let only = single.forwarded_ports_by_machine();
+    assert_eq!((only[0].0.as_str(), only[0].1.len()), ("default", 1));
+}

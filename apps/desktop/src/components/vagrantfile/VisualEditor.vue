@@ -9,7 +9,7 @@ import { hostPortKey, move, newForwardedPort, newMachine, tcpHostPorts } from '@
 import { cn } from '@/lib/utils'
 import { hasBackend } from '@/services/app'
 import { networkApi } from '@/services/network'
-import type { BridgedInterface, VagrantConfig } from '@/types/vagrantfile'
+import type { BridgedInterface, PortUse, VagrantConfig } from '@/types/vagrantfile'
 
 /** Forms for the supported Vagrantfile subset (crates/config-model). */
 const config = defineModel<VagrantConfig>({ required: true })
@@ -17,6 +17,8 @@ const props = defineProps<{
   errors: Record<string, string>
   /** The environment's provider, offered first for CPU and memory. */
   provider?: string | null
+  /** The environment being edited, to compare its ports with other environments'. */
+  environmentId?: string
 }>()
 
 /** `shared` (settings on `config`) or a machine index. */
@@ -54,8 +56,17 @@ function moveMachine(delta: -1 | 1) {
 // Host facts for the network forms; failures only mean no suggestions or warnings.
 const bridges = ref<BridgedInterface[]>([])
 const portsInUse = ref<Record<string, boolean>>({})
+/** Forwarded ports of the other registered environments (as saved). */
+const otherPorts = ref<PortUse[]>([])
 onMounted(async () => {
-  if (hasBackend()) bridges.value = await networkApi.listBridgedInterfaces().catch(() => [])
+  if (!hasBackend()) return
+  void networkApi
+    .listForwardedPorts()
+    .then(
+      (r) => (otherPorts.value = r.ports.filter((p) => p.environmentId !== props.environmentId)),
+    )
+    .catch(() => undefined)
+  bridges.value = await networkApi.listBridgedInterfaces().catch(() => [])
 })
 
 const PORT_CHECK_DELAY_MS = 500
@@ -209,6 +220,7 @@ const navItem = (active: boolean) =>
           :new-forwarded-port="() => newForwardedPort(config)"
           :bridges="bridges"
           :ports-in-use="portsInUse"
+          :other-ports="otherPorts"
           :provider="provider"
         />
       </template>
@@ -222,6 +234,7 @@ const navItem = (active: boolean) =>
         :new-forwarded-port="() => newForwardedPort(config)"
         :bridges="bridges"
         :ports-in-use="portsInUse"
+        :other-ports="otherPorts"
         :provider="provider"
       />
     </div>
