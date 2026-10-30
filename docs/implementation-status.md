@@ -258,12 +258,13 @@ use MSVC in CI. Windows has no local MSVC or Rust install.
   `crates/project-store/tests/real_db.rs`), opening the project page through
   the WebView (8 visits, 5 fresh starts), and a 5-minute scripted session of
   tasks, notes and status refreshes. A run with `RUST_LOG=…,sqlx=debug`
-  (2026-10-30) also ended with exit code 5 and no overflow message, 16
-  minutes after start; its last lines were successful reads (environment
-  statuses, projects, tags). sqlx logs a statement only after it completes,
-  so a statement that overflows wouldn't appear; it isn't known whether
-  that window was closed by hand. Next step: ask the user whether exit code
-  5 matched a manual close, and log statement starts if it didn't.
+  (2026-10-30) ended with exit code 5 after the user closed the window by
+  hand (confirmed), so exit code 5 is how a normal close shows when the app
+  is started from WSL: the two earlier exit-5 windows were not necessarily
+  crashes, and the overflow message is the only evidence of the bug. sqlx
+  logs a statement only after it completes, so if the crash recurs under
+  logging, the statement running at the time won't be in the log. Next
+  step: keep running with logging; if it recurs, log statement starts.
 
 Fixed during the Phase 4 walkthrough: provisioner failures showed only
 Vagrant's generic "SSH command responded with a non-zero exit status" text, because
